@@ -4,20 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, ShieldCheck, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, CheckCircle2 } from 'lucide-react';
+import { Trash2, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, CheckCircle2, Save } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { auth, db } from './firebase';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  setDoc,
+} from 'firebase/firestore';
 
 const DEFAULT_TOTAL_SENSORS = 2887;
-const LOCAL_STORAGE_KEY = 'stl8-cbm-shift-report-dashboard';
-const ADMIN_USERS_STORAGE_KEY = 'stl8-cbm-approved-admin-users';
+const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
 
 const USER_ROLES = {
   ADMIN: 'Admin',
   VIEWER: 'Viewer',
 };
-
-const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
-const PRIMARY_ADMIN_PASSWORD = 'KingLobo05!';
 
 const severityOrder = {
   Critical: 0,
@@ -56,6 +68,16 @@ const createDeepDiveTemplate = () => ({
   images: [],
 });
 
+const defaultDashboard = {
+  reportInfo: {
+    date: new Date().toISOString().split('T')[0],
+    summary: '',
+  },
+  alarms: [],
+  scheduledDTW: [],
+  lastSaved: 'Not saved yet',
+};
+
 export default function ShiftReportDashboard() {
   const [currentUser, setCurrentUser] = useState({
     name: 'Guest Viewer',
@@ -63,33 +85,26 @@ export default function ShiftReportDashboard() {
     role: USER_ROLES.VIEWER,
   });
 
+  const [authReady, setAuthReady] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showAdminManager, setShowAdminManager] = useState(false);
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [adminAccessMessage, setAdminAccessMessage] = useState('');
+  const [approvedAdmins, setApprovedAdmins] = useState([]);
 
-  const [approvedAdmins, setApprovedAdmins] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(ADMIN_USERS_STORAGE_KEY)) || [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [reportInfo, setReportInfo] = useState({
-    date: new Date().toISOString().split('T')[0],
-    summary: '',
-  });
-
+  const [reportInfo, setReportInfo] = useState(defaultDashboard.reportInfo);
   const [alarms, setAlarms] = useState([]);
   const [scheduledDTW, setScheduledDTW] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [lastSaved, setLastSaved] = useState('Not saved yet');
+  const [saveMessage, setSaveMessage] = useState('');
 
   const [newAlarm, setNewAlarm] = useState({
     asset: '',
@@ -111,39 +126,109 @@ export default function ShiftReportDashboard() {
   const isPrimaryAdmin = currentUser.email === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
   useEffect(() => {
-    const savedDashboard = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!savedDashboard) return;
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser?.email) {
+        setCurrentUser({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
+        setIsEditMode(false);
+        setAuthReady(true);
+        return;
+      }
 
-    try {
-      const parsed = JSON.parse(savedDashboard);
-      setReportInfo(parsed.reportInfo || reportInfo);
-      setAlarms(parsed.alarms || []);
-      setScheduledDTW(parsed.scheduledDTW || []);
-      setLastSaved(parsed.lastSaved || 'Recovered saved report');
-    } catch {
-      setLastSaved('Unable to load saved report');
-    }
+      const email = firebaseUser.email.toLowerCase();
+
+      try {
+        const adminDoc = await getDoc(doc(db, 'adminUsers', email));
+        const isApprovedAdmin = adminDoc.exists() || email === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
+        if (email === PRIMARY_ADMIN_EMAIL.toLowerCase() && !adminDoc.exists()) {
+          await setDoc(
+            doc(db, 'adminUsers', email),
+            {
+              email,
+              role: USER_ROLES.ADMIN,
+              isPrimary: true,
+              approvedAt: new Date().toLocaleString(),
+            },
+            { merge: true }
+          );
+        }
+
+        setCurrentUser({
+          name: email,
+          email,
+          role: isApprovedAdmin ? USER_ROLES.ADMIN : USER_ROLES.VIEWER,
+        });
+
+        setIsEditMode(isApprovedAdmin);
+      } catch (error) {
+        console.error('Auth role check failed:', error);
+        setCurrentUser({ name: firebaseUser.email, email, role: USER_ROLES.VIEWER });
+        setIsEditMode(false);
+      }
+
+      setAuthReady(true);
+    });
+
+    return () => unsubscribeAuth();
   }, []);
 
   useEffect(() => {
-    const saveTimer = setTimeout(() => {
-      const savedTime = new Date().toLocaleString();
-      localStorage.setItem(
-        LOCAL_STORAGE_KEY,
-        JSON.stringify({ reportInfo, alarms, scheduledDTW, lastSaved: savedTime })
+    const unsubscribeAdmins = onSnapshot(collection(db, 'adminUsers'), (snapshot) => {
+      const admins = snapshot.docs.map((adminDoc) => ({
+        id: adminDoc.id,
+        ...adminDoc.data(),
+      }));
+      setApprovedAdmins(admins);
+    });
+
+    return () => unsubscribeAdmins();
+  }, []);
+
+  useEffect(() => {
+    const dashboardRef = doc(db, 'dashboards', 'current');
+
+    const unsubscribeDashboard = onSnapshot(dashboardRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data();
+      setReportInfo(data.reportInfo || defaultDashboard.reportInfo);
+      setAlarms(data.alarms || []);
+      setScheduledDTW(data.scheduledDTW || []);
+      setLastSaved(data.lastSaved || 'Recovered cloud report');
+    });
+
+    return () => unsubscribeDashboard();
+  }, []);
+
+  const saveDashboard = async () => {
+    if (!canEdit) return;
+
+    const savedTime = new Date().toLocaleString();
+
+    try {
+      await setDoc(
+        doc(db, 'dashboards', 'current'),
+        {
+          reportInfo,
+          alarms,
+          scheduledDTW,
+          lastSaved: savedTime,
+          updatedBy: currentUser.email,
+          updatedAt: savedTime,
+        },
+        { merge: true }
       );
+
       setLastSaved(savedTime);
-    }, 800);
-
-    return () => clearTimeout(saveTimer);
-  }, [reportInfo, alarms, scheduledDTW]);
-
-  const saveApprovedAdmins = (adminList) => {
-    setApprovedAdmins(adminList);
-    localStorage.setItem(ADMIN_USERS_STORAGE_KEY, JSON.stringify(adminList));
+      setSaveMessage('Report saved to Firebase.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      console.error('Save failed:', error);
+      setSaveMessage('Save failed. Check Firebase permissions.');
+    }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const normalizedEmail = loginEmail.trim().toLowerCase();
 
     if (!normalizedEmail || !loginPassword) {
@@ -151,44 +236,60 @@ export default function ShiftReportDashboard() {
       return;
     }
 
-    const primaryAdminMatch =
-      normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase() &&
-      loginPassword === PRIMARY_ADMIN_PASSWORD;
+    try {
+      const isPrimaryLogin = normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
-    const approvedAdmin = approvedAdmins.find((admin) => admin.email === normalizedEmail);
+      if (!isPrimaryLogin) {
+        const approvedDoc = await getDoc(doc(db, 'adminUsers', normalizedEmail));
+        if (!approvedDoc.exists()) {
+          setLoginError('This email is not approved for admin access.');
+          return;
+        }
+      }
 
-    if (!primaryAdminMatch && !approvedAdmin) {
-      setLoginError('Email not approved for admin access.');
-      return;
+      try {
+        await signInWithEmailAndPassword(auth, normalizedEmail, loginPassword);
+      } catch (error) {
+        if (error.code === 'auth/user-not-found' && !isPrimaryLogin) {
+          await createUserWithEmailAndPassword(auth, normalizedEmail, loginPassword);
+          await setDoc(
+            doc(db, 'adminUsers', normalizedEmail),
+            {
+              email: normalizedEmail,
+              role: USER_ROLES.ADMIN,
+              passwordSetAt: new Date().toLocaleString(),
+            },
+            { merge: true }
+          );
+        } else {
+          throw error;
+        }
+      }
+
+      setShowLogin(false);
+      setLoginEmail('');
+      setLoginPassword('');
+      setLoginError('');
+    } catch (error) {
+      console.error('Login failed:', error);
+
+      if (error.code === 'auth/user-not-found') {
+        setLoginError('Account not found. Primary admin should be created in Firebase Authentication first.');
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setLoginError('Incorrect email or password.');
+      } else if (error.code === 'auth/email-already-in-use') {
+        setLoginError('This email already exists. Use the correct password.');
+      } else if (error.code === 'auth/weak-password') {
+        setLoginError('Password must be at least 6 characters.');
+      } else {
+        setLoginError('Unable to login. Check Firebase Authentication settings.');
+      }
     }
-
-    if (approvedAdmin?.password && approvedAdmin.password !== loginPassword) {
-      setLoginError('Incorrect password.');
-      return;
-    }
-
-    if (approvedAdmin && !approvedAdmin.password) {
-      saveApprovedAdmins(
-        approvedAdmins.map((admin) =>
-          admin.email === normalizedEmail
-            ? { ...admin, password: loginPassword, passwordSetAt: new Date().toLocaleString() }
-            : admin
-        )
-      );
-    }
-
-    setCurrentUser({
-      name: normalizedEmail,
-      email: normalizedEmail,
-      role: USER_ROLES.ADMIN,
-    });
-    setIsEditMode(true);
-    setShowLogin(false);
-    setLoginPassword('');
-    setLoginError('');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
+
     setCurrentUser({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
     setIsEditMode(false);
     setShowAdminManager(false);
@@ -198,8 +299,13 @@ export default function ShiftReportDashboard() {
     setLoginError('');
   };
 
-  const grantAdminAccess = () => {
+  const grantAdminAccess = async () => {
     const normalizedEmail = newAdminEmail.trim().toLowerCase();
+
+    if (!isPrimaryAdmin) {
+      setAdminAccessMessage('Only the primary admin can grant admin access.');
+      return;
+    }
 
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       setAdminAccessMessage('Enter a valid email address.');
@@ -211,28 +317,51 @@ export default function ShiftReportDashboard() {
       return;
     }
 
-    if (approvedAdmins.some((admin) => admin.email === normalizedEmail)) {
-      setAdminAccessMessage('This email already has admin access.');
-      return;
-    }
+    try {
+      await setDoc(
+        doc(db, 'adminUsers', normalizedEmail),
+        {
+          email: normalizedEmail,
+          role: USER_ROLES.ADMIN,
+          approvedAt: new Date().toLocaleString(),
+          approvedBy: currentUser.email,
+        },
+        { merge: true }
+      );
 
-    saveApprovedAdmins([
-      ...approvedAdmins,
-      { email: normalizedEmail, password: '', approvedAt: new Date().toLocaleString() },
-    ]);
-    setNewAdminEmail('');
-    setAdminAccessMessage(`${normalizedEmail} approved. They can create their password on first login.`);
+      setNewAdminEmail('');
+      setAdminAccessMessage(`${normalizedEmail} approved. They can create their password from the Admin Login screen.`);
+    } catch (error) {
+      console.error('Grant admin access failed:', error);
+      setAdminAccessMessage('Unable to grant access. Check Firebase permissions.');
+    }
   };
 
-  const removeAdminAccess = (email) => {
-    saveApprovedAdmins(approvedAdmins.filter((admin) => admin.email !== email));
+  const removeAdminAccess = async (email) => {
+    if (!isPrimaryAdmin) return;
+    if (email === PRIMARY_ADMIN_EMAIL.toLowerCase()) return;
+    await deleteDoc(doc(db, 'adminUsers', email));
+  };
+
+  const sendPasswordSetupEmail = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setAdminAccessMessage(`Password setup/reset email sent to ${email}.`);
+    } catch (error) {
+      console.error('Email send failed:', error);
+      setAdminAccessMessage(
+        'Firebase can only send setup/reset emails after the user account exists. Have the user create their password from Admin Login first, then use reset if needed.'
+      );
+    }
   };
 
   const exportToPDF = () => {
     const originalEditMode = isEditMode;
     const originalAlarms = alarms;
+
     setIsEditMode(false);
     setAlarms(alarms.map((alarm) => ({ ...alarm, showDetails: true })));
+
     setTimeout(() => {
       window.print();
       setIsEditMode(originalEditMode);
@@ -241,7 +370,7 @@ export default function ShiftReportDashboard() {
   };
 
   const addAlarm = () => {
-    if (!newAlarm.asset || !newAlarm.issue) return;
+    if (!newAlarm.asset || !newAlarm.issue || !canEdit || !isEditMode) return;
 
     setAlarms([
       ...alarms,
@@ -262,36 +391,21 @@ export default function ShiftReportDashboard() {
 
   const addDTWRepair = () => {
     const finalIssue = newDTW.issue === 'Custom' ? newDTW.customIssue : newDTW.issue;
-    if (!newDTW.asset || !finalIssue) return;
+    if (!newDTW.asset || !finalIssue || !canEdit || !isEditMode) return;
 
-    setScheduledDTW([
-      ...scheduledDTW,
-      { ...newDTW, issue: finalIssue, customIssue: '', id: Date.now() },
-    ]);
-
+    setScheduledDTW([...scheduledDTW, { ...newDTW, issue: finalIssue, customIssue: '', id: Date.now() }]);
     setNewDTW({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
   };
 
   const updateDTWRepair = (id, field, value) => {
-    setScheduledDTW(
-      scheduledDTW.map((repair) => (repair.id === id ? { ...repair, [field]: value } : repair))
-    );
+    setScheduledDTW(scheduledDTW.map((repair) => (repair.id === id ? { ...repair, [field]: value } : repair)));
   };
 
-  const removeDTWRepair = (id) => {
-    setScheduledDTW(scheduledDTW.filter((repair) => repair.id !== id));
-  };
-
-  const removeAlarm = (id) => {
-    setAlarms(alarms.filter((alarm) => alarm.id !== id));
-  };
+  const removeDTWRepair = (id) => setScheduledDTW(scheduledDTW.filter((repair) => repair.id !== id));
+  const removeAlarm = (id) => setAlarms(alarms.filter((alarm) => alarm.id !== id));
 
   const toggleAlarmDetails = (id) => {
-    setAlarms(
-      alarms.map((alarm) =>
-        alarm.id === id ? { ...alarm, showDetails: !alarm.showDetails } : alarm
-      )
-    );
+    setAlarms(alarms.map((alarm) => (alarm.id === id ? { ...alarm, showDetails: !alarm.showDetails } : alarm)));
   };
 
   const updateAlarmField = (alarmId, field, value) => {
@@ -317,9 +431,7 @@ export default function ShiftReportDashboard() {
   const updateAlarmDeepDive = (alarmId, field, value) => {
     setAlarms(
       alarms.map((alarm) =>
-        alarm.id === alarmId
-          ? { ...alarm, deepDive: { ...alarm.deepDive, [field]: value } }
-          : alarm
+        alarm.id === alarmId ? { ...alarm, deepDive: { ...alarm.deepDive, [field]: value } } : alarm
       )
     );
   };
@@ -373,11 +485,12 @@ export default function ShiftReportDashboard() {
     return alarms
       .filter((alarm) => {
         const search = searchTerm.toLowerCase();
+
         const matchesSearch =
           alarm.asset.toLowerCase().includes(search) ||
           alarm.issue.toLowerCase().includes(search) ||
           (alarm.component || '').toLowerCase().includes(search) ||
-          (alarm.deepDive.location || '').toLowerCase().includes(search);
+          (alarm.deepDive?.location || '').toLowerCase().includes(search);
 
         const matchesCategory = categoryFilter === 'All' || alarm.category === categoryFilter;
         return matchesSearch && matchesCategory;
@@ -396,6 +509,18 @@ export default function ShiftReportDashboard() {
       return String(a.asset).localeCompare(String(b.asset));
     });
   }, [scheduledDTW]);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Card className="rounded-2xl shadow-lg">
+          <CardContent className="p-6 text-sm text-slate-600">
+            Loading STL8 CBM dashboard...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 p-6 print:bg-white print:p-2">
@@ -425,6 +550,7 @@ export default function ShiftReportDashboard() {
                     Shift Report · Active Alarms · Sensor Health Overview
                   </p>
                   <p className="text-slate-500 text-[10px] mt-0.5">Signed in as: {currentUser.name}</p>
+                  <p className="text-slate-600 text-[10px] mt-0.5">Last saved: {lastSaved}</p>
                 </div>
               </div>
 
@@ -438,6 +564,12 @@ export default function ShiftReportDashboard() {
                 >
                   {isEditMode ? 'Edit Mode Enabled' : canEdit ? 'View Only Mode' : 'Admin Login / Edit'}
                 </Button>
+
+                {canEdit && isEditMode && (
+                  <Button onClick={saveDashboard} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs px-3">
+                    <Save className="mr-2 h-4 w-4" /> Save Report
+                  </Button>
+                )}
 
                 <Button onClick={exportToPDF} className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3">
                   Export PDF
@@ -459,6 +591,12 @@ export default function ShiftReportDashboard() {
           </CardContent>
         </Card>
 
+        {saveMessage && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+            {saveMessage}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="rounded-2xl shadow-lg">
             <CardHeader>
@@ -471,6 +609,7 @@ export default function ShiftReportDashboard() {
                 disabled={!isEditMode}
                 onChange={(e) => setReportInfo({ ...reportInfo, date: e.target.value })}
               />
+
               <Textarea
                 placeholder="Shift Summary / Notes"
                 value={reportInfo.summary}
@@ -487,15 +626,43 @@ export default function ShiftReportDashboard() {
                 <CardTitle>Add Active Alarm</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Input placeholder="Asset / Conveyor ID" value={newAlarm.asset} onChange={(e) => setNewAlarm({ ...newAlarm, asset: e.target.value })} />
-                <Input placeholder="Component" value={newAlarm.component} onChange={(e) => setNewAlarm({ ...newAlarm, component: e.target.value })} />
-                <select className="w-full border rounded-lg p-2" value={newAlarm.issue} onChange={(e) => setNewAlarm({ ...newAlarm, issue: e.target.value })}>
+                <Input
+                  placeholder="Asset / Conveyor ID"
+                  value={newAlarm.asset}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, asset: e.target.value })}
+                />
+
+                <Input
+                  placeholder="Component"
+                  value={newAlarm.component}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, component: e.target.value })}
+                />
+
+                <select
+                  className="w-full border rounded-lg p-2"
+                  value={newAlarm.issue}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, issue: e.target.value })}
+                >
                   <option value="">Select Issue Description</option>
-                  {issueOptions.map((issue) => <option key={issue} value={issue}>{issue}</option>)}
+                  {issueOptions.map((issue) => (
+                    <option key={issue} value={issue}>
+                      {issue}
+                    </option>
+                  ))}
                 </select>
-                <select className="w-full border rounded-lg p-2" value={newAlarm.category} onChange={(e) => setNewAlarm({ ...newAlarm, category: e.target.value })}>
-                  {categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+
+                <select
+                  className="w-full border rounded-lg p-2"
+                  value={newAlarm.category}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, category: e.target.value })}
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
                 </select>
+
                 <Button onClick={addAlarm} className="w-full">
                   <Plus className="mr-2 h-4 w-4" /> Add Alarm
                 </Button>
@@ -512,24 +679,40 @@ export default function ShiftReportDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
               <div className="lg:col-span-2 flex justify-center overflow-x-auto">
                 <PieChart width={520} height={260}>
-                  <Pie data={sensorHealthData} cx="50%" cy="100%" startAngle={0} endAngle={180} outerRadius={120} innerRadius={70} paddingAngle={2} dataKey="value" label={false}>
-                    {sensorHealthData.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
+                  <Pie
+                    data={sensorHealthData}
+                    cx="50%"
+                    cy="100%"
+                    startAngle={0}
+                    endAngle={180}
+                    outerRadius={120}
+                    innerRadius={70}
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={false}
+                  >
+                    {sensorHealthData.map((entry, index) => (
+                      <Cell key={index} fill={entry.fill} />
+                    ))}
                   </Pie>
                   <Tooltip formatter={(value, name, props) => [`${props.payload.realValue} sensors`, name]} />
                   <Legend verticalAlign="top" align="center" wrapperStyle={{ fontSize: '12px' }} />
                 </PieChart>
               </div>
+
               <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="rounded-xl bg-red-50 border border-red-200 p-3">
                   <p className="text-xs font-semibold text-red-700 uppercase">Active Alarms</p>
                   <p className="text-2xl font-bold text-red-700">{activeAlarmCount}</p>
                   <p className="text-xs text-red-600">{activeAlarmPercent}%</p>
                 </div>
+
                 <div className="rounded-xl bg-green-50 border border-green-200 p-3">
                   <p className="text-xs font-semibold text-green-700 uppercase">Normal Sensors</p>
                   <p className="text-2xl font-bold text-green-700">{normalSensorCount}</p>
                   <p className="text-xs text-green-600">{normalSensorPercent}%</p>
                 </div>
+
                 <div className="rounded-xl bg-white border p-3">
                   <p className="text-xs font-semibold text-slate-700 uppercase">Total Sensors</p>
                   <p className="text-2xl font-bold text-slate-800">{DEFAULT_TOTAL_SENSORS}</p>
@@ -547,17 +730,51 @@ export default function ShiftReportDashboard() {
           <CardContent className="space-y-3">
             {isEditMode && canEdit && (
               <div className="grid grid-cols-1 md:grid-cols-6 gap-2 rounded-xl border bg-slate-50 p-3">
-                <select className="rounded-lg border border-slate-300 bg-white p-2 text-sm" value={newDTW.category} onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}>
-                  {categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+                <select
+                  className="rounded-lg border border-slate-300 bg-white p-2 text-sm"
+                  value={newDTW.category}
+                  onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
                 </select>
-                <Input placeholder="Asset" value={newDTW.asset} onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })} />
-                <Input placeholder="Component" value={newDTW.component} onChange={(e) => setNewDTW({ ...newDTW, component: e.target.value })} />
-                <select className="rounded-lg border border-slate-300 bg-white p-2 text-sm" value={newDTW.issue} onChange={(e) => setNewDTW({ ...newDTW, issue: e.target.value })}>
+
+                <Input
+                  placeholder="Asset"
+                  value={newDTW.asset}
+                  onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })}
+                />
+
+                <Input
+                  placeholder="Component"
+                  value={newDTW.component}
+                  onChange={(e) => setNewDTW({ ...newDTW, component: e.target.value })}
+                />
+
+                <select
+                  className="rounded-lg border border-slate-300 bg-white p-2 text-sm"
+                  value={newDTW.issue}
+                  onChange={(e) => setNewDTW({ ...newDTW, issue: e.target.value })}
+                >
                   <option value="">Select Issue</option>
-                  {issueOptions.map((issue) => <option key={issue} value={issue}>{issue}</option>)}
+                  {issueOptions.map((issue) => (
+                    <option key={issue} value={issue}>
+                      {issue}
+                    </option>
+                  ))}
                   <option value="Custom">Custom Issue</option>
                 </select>
-                <Input placeholder="Custom issue" value={newDTW.customIssue} disabled={newDTW.issue !== 'Custom'} onChange={(e) => setNewDTW({ ...newDTW, customIssue: e.target.value })} />
+
+                <Input
+                  placeholder="Custom issue"
+                  value={newDTW.customIssue}
+                  disabled={newDTW.issue !== 'Custom'}
+                  onChange={(e) => setNewDTW({ ...newDTW, customIssue: e.target.value })}
+                />
+
                 <Button onClick={addDTWRepair}>
                   <Plus className="mr-2 h-4 w-4" /> Add DTW
                 </Button>
@@ -576,23 +793,83 @@ export default function ShiftReportDashboard() {
                     {isEditMode && canEdit && <th className="px-3 py-2 text-center">Remove</th>}
                   </tr>
                 </thead>
+
                 <tbody>
-                  {sortedScheduledDTW.length > 0 ? sortedScheduledDTW.map((repair) => (
-                    <tr key={repair.id} className="border-t bg-white align-top">
-                      <td className="px-3 py-2">
-                        {isEditMode && canEdit ? (
-                          <select className="w-full rounded-lg border p-2 text-xs" value={repair.category} onChange={(e) => updateDTWRepair(repair.id, 'category', e.target.value)}>
-                            {categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
-                          </select>
-                        ) : <Badge className={`${categories.find((cat) => cat.name === repair.category)?.color} text-white`}>{repair.category}</Badge>}
-                      </td>
-                      <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.asset} onChange={(e) => updateDTWRepair(repair.id, 'asset', e.target.value)} /> : repair.asset}</td>
-                      <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.component} onChange={(e) => updateDTWRepair(repair.id, 'component', e.target.value)} /> : repair.component}</td>
-                      <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.issue} onChange={(e) => updateDTWRepair(repair.id, 'issue', e.target.value)} /> : repair.issue}</td>
-                      <td className="px-3 py-2"><Textarea value={repair.repairNotes} disabled={!isEditMode || !canEdit} onChange={(e) => updateDTWRepair(repair.id, 'repairNotes', e.target.value)} className="min-h-[64px] text-xs" /></td>
-                      {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" onClick={() => removeDTWRepair(repair.id)}><Trash2 className="w-3 h-3" /></Button></td>}
-                    </tr>
-                  )) : (
+                  {sortedScheduledDTW.length > 0 ? (
+                    sortedScheduledDTW.map((repair) => (
+                      <tr key={repair.id} className="border-t bg-white align-top">
+                        <td className="px-3 py-2">
+                          {isEditMode && canEdit ? (
+                            <select
+                              className="w-full rounded-lg border p-2 text-xs"
+                              value={repair.category}
+                              onChange={(e) => updateDTWRepair(repair.id, 'category', e.target.value)}
+                            >
+                              {categories.map((cat) => (
+                                <option key={cat.name} value={cat.name}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Badge className={`${categories.find((cat) => cat.name === repair.category)?.color} text-white`}>
+                              {repair.category}
+                            </Badge>
+                          )}
+                        </td>
+
+                        <td className="px-3 py-2">
+                          {isEditMode && canEdit ? (
+                            <Input
+                              value={repair.asset}
+                              onChange={(e) => updateDTWRepair(repair.id, 'asset', e.target.value)}
+                            />
+                          ) : (
+                            repair.asset
+                          )}
+                        </td>
+
+                        <td className="px-3 py-2">
+                          {isEditMode && canEdit ? (
+                            <Input
+                              value={repair.component}
+                              onChange={(e) => updateDTWRepair(repair.id, 'component', e.target.value)}
+                            />
+                          ) : (
+                            repair.component
+                          )}
+                        </td>
+
+                        <td className="px-3 py-2">
+                          {isEditMode && canEdit ? (
+                            <Input
+                              value={repair.issue}
+                              onChange={(e) => updateDTWRepair(repair.id, 'issue', e.target.value)}
+                            />
+                          ) : (
+                            repair.issue
+                          )}
+                        </td>
+
+                        <td className="px-3 py-2">
+                          <Textarea
+                            value={repair.repairNotes}
+                            disabled={!isEditMode || !canEdit}
+                            onChange={(e) => updateDTWRepair(repair.id, 'repairNotes', e.target.value)}
+                            className="min-h-[64px] text-xs"
+                          />
+                        </td>
+
+                        {isEditMode && canEdit && (
+                          <td className="px-3 py-2 text-center">
+                            <Button variant="destructive" size="icon" onClick={() => removeDTWRepair(repair.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  ) : (
                     <tr>
                       <td colSpan={isEditMode && canEdit ? 6 : 5} className="px-3 py-6 text-center text-sm text-slate-500">
                         No scheduled downtime window repairs added.
@@ -609,6 +886,7 @@ export default function ShiftReportDashboard() {
           <CardHeader>
             <CardTitle>Active Alarms</CardTitle>
           </CardHeader>
+
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
               {categories.map((cat) => (
@@ -622,11 +900,21 @@ export default function ShiftReportDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-4 print:hidden">
               <div className="relative lg:col-span-2">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <Input placeholder="Search asset, issue, component, or location" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+                <Input
+                  placeholder="Search asset, issue, component, or location"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
               </div>
+
               <select className="rounded-lg border p-2 text-sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
                 <option value="All">All Severities</option>
-                {categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+                {categories.map((cat) => (
+                  <option key={cat.name} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -641,9 +929,7 @@ export default function ShiftReportDashboard() {
                     <th className="px-3 py-2 text-left">Status</th>
                     <th className="px-3 py-2 text-left">Created</th>
                     <th className="px-3 py-2 text-center">Details</th>
-                    {isEditMode && canEdit && (
-                      <th className="px-3 py-2 text-center">Remove</th>
-                    )}
+                    {isEditMode && canEdit && <th className="px-3 py-2 text-center">Remove</th>}
                   </tr>
                 </thead>
 
@@ -657,34 +943,18 @@ export default function ShiftReportDashboard() {
                           </Badge>
                         </td>
 
-                        <td className="px-3 py-2 font-semibold text-sm text-slate-800">
-                          {alarm.asset}
-                        </td>
-
-                        <td className="px-3 py-2 text-xs text-slate-700">
-                          {alarm.issue}
-                        </td>
-
-                        <td className="px-3 py-2 text-xs text-slate-700">
-                          {alarm.component || '-'}
-                        </td>
+                        <td className="px-3 py-2 font-semibold text-sm text-slate-800">{alarm.asset}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{alarm.issue}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{alarm.component || '-'}</td>
 
                         <td className="px-3 py-2">
-                          <Badge className="bg-slate-700 text-white text-[10px] px-2 py-0">
-                            {alarm.status}
-                          </Badge>
+                          <Badge className="bg-slate-700 text-white text-[10px] px-2 py-0">{alarm.status}</Badge>
                         </td>
 
-                        <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">
-                          {alarm.createdAt}
-                        </td>
+                        <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">{alarm.createdAt}</td>
 
                         <td className="px-3 py-2 text-center">
-                          <Button
-                            variant="outline"
-                            onClick={() => toggleAlarmDetails(alarm.id)}
-                            className="h-7 text-[11px] px-2"
-                          >
+                          <Button variant="outline" onClick={() => toggleAlarmDetails(alarm.id)} className="h-7 text-[11px] px-2">
                             {alarm.showDetails ? (
                               <>
                                 <ChevronUp className="mr-2 w-4 h-4" /> Hide Details
@@ -699,12 +969,7 @@ export default function ShiftReportDashboard() {
 
                         {isEditMode && canEdit && (
                           <td className="px-3 py-2 text-center">
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => removeAlarm(alarm.id)}
-                            >
+                            <Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}>
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </td>
@@ -713,10 +978,7 @@ export default function ShiftReportDashboard() {
 
                       {alarm.showDetails && (
                         <tr className="bg-slate-50 border-t">
-                          <td
-                            colSpan={isEditMode && canEdit ? 8 : 7}
-                            className="p-0"
-                          >
+                          <td colSpan={isEditMode && canEdit ? 8 : 7} className="p-0">
                             <div className="overflow-x-auto">
                               <table className="w-full min-w-[1100px] border-collapse">
                                 <thead>
@@ -794,12 +1056,64 @@ export default function ShiftReportDashboard() {
                                         value={alarm.component}
                                         onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)}
                                       />
+
+                                      <div className="text-xs text-slate-500">
+                                        <p>
+                                          <Clock className="inline w-3 h-3 mr-1" />
+                                          Created: {alarm.createdAt}
+                                        </p>
+                                        {alarm.acknowledgedAt && (
+                                          <p>
+                                            <CheckCircle2 className="inline w-3 h-3 mr-1" />
+                                            Ack: {alarm.acknowledgedAt}
+                                          </p>
+                                        )}
+                                        {alarm.resolvedAt && (
+                                          <p>
+                                            <CheckCircle2 className="inline w-3 h-3 mr-1" />
+                                            Resolved: {alarm.resolvedAt}
+                                          </p>
+                                        )}
+                                      </div>
                                     </td>
 
                                     <td className="border p-3">
-                                      <div className="text-xs text-slate-500">
-                                        Screenshot upload area
+                                      {isEditMode && canEdit && (
+                                        <label className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm text-white cursor-pointer w-full">
+                                          Upload Screenshots
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(e) => handleAlarmImageUpload(alarm.id, e)}
+                                          />
+                                        </label>
+                                      )}
+
+                                      <div className="grid grid-cols-2 gap-2 mt-3">
+                                        {alarm.deepDive.images.map((image) => (
+                                          <div key={image.id} className="relative rounded-lg border bg-slate-50 p-1">
+                                            <img src={image.url} alt={image.name} className="h-20 w-full object-cover rounded-md border" />
+                                            {isEditMode && canEdit && (
+                                              <Button
+                                                variant="destructive"
+                                                size="icon"
+                                                className="absolute -right-2 -top-2 h-5 w-5"
+                                                onClick={() => removeAlarmImage(alarm.id, image.id)}
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        ))}
                                       </div>
+
+                                      {alarm.deepDive.images.length === 0 && (
+                                        <div className="rounded-lg border border-dashed p-4 mt-3 text-center text-xs text-slate-500">
+                                          No screenshots uploaded.
+                                        </div>
+                                      )}
                                     </td>
                                   </tr>
                                 </tbody>
@@ -829,12 +1143,39 @@ export default function ShiftReportDashboard() {
                 <CardTitle>Admin Login</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Input type="email" placeholder="Admin email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
-                <Input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }} />
+                <Input
+                  type="email"
+                  placeholder="Admin email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleLogin();
+                  }}
+                />
                 {loginError && <div className="text-sm text-red-600">{loginError}</div>}
                 <div className="flex gap-2">
-                  <Button onClick={handleLogin} className="flex-1 bg-slate-950 text-white"><LogIn className="mr-2 h-4 w-4" /> Login</Button>
-                  <Button variant="outline" className="flex-1" onClick={() => { setShowLogin(false); setLoginError(''); }}>Cancel</Button>
+                  <Button onClick={handleLogin} className="flex-1 bg-slate-950 text-white">
+                    <LogIn className="mr-2 h-4 w-4" /> Login
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setShowLogin(false);
+                      setLoginError('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-600">
+                  Approved admins can create their password on first login. Primary admin should be created in Firebase Authentication first.
                 </div>
               </CardContent>
             </Card>
@@ -849,15 +1190,69 @@ export default function ShiftReportDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
-                  <Input type="email" placeholder="Enter admin email" value={newAdminEmail} onChange={(e) => setNewAdminEmail(e.target.value)} />
-                  <Button onClick={grantAdminAccess} className="bg-purple-700 hover:bg-purple-800 text-white">Grant Access</Button>
+                  <Input
+                    type="email"
+                    placeholder="Enter admin email"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                  />
+                  <Button onClick={grantAdminAccess} className="bg-purple-700 hover:bg-purple-800 text-white">
+                    Grant Access
+                  </Button>
                 </div>
-                {adminAccessMessage && <div className="text-sm text-slate-700 bg-slate-100 rounded-lg p-3">{adminAccessMessage}</div>}
+
+                {adminAccessMessage && (
+                  <div className="text-sm text-slate-700 bg-slate-100 rounded-lg p-3">
+                    {adminAccessMessage}
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  {approvedAdmins.map((admin) => <div key={admin.email} className="flex items-center justify-between rounded-xl border border-slate-200 p-3"><div><p className="font-medium text-slate-900">{admin.email}</p><p className="text-xs text-slate-500">Password: {admin.password ? 'Set' : 'Pending Setup'}</p></div><Button variant="destructive" size="icon" onClick={() => removeAdminAccess(admin.email)}><Trash2 className="w-4 h-4" /></Button></div>)}
-                  {approvedAdmins.length === 0 && <div className="text-sm text-slate-500 text-center p-6 border rounded-xl">No additional admins approved yet.</div>}
+                  {approvedAdmins.map((admin) => (
+                    <div
+                      key={admin.email}
+                      className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900">{admin.email}</p>
+                        <p className="text-xs text-slate-500">
+                          Role: {admin.role || 'Admin'} · Approved: {admin.approvedAt || 'Existing'} · Password:{' '}
+                          {admin.passwordSetAt ? 'Set' : 'Pending first login'}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => sendPasswordSetupEmail(admin.email)} className="h-8 text-xs px-3">
+                          Send Reset Email
+                        </Button>
+
+                        {admin.email !== PRIMARY_ADMIN_EMAIL.toLowerCase() && (
+                          <Button variant="destructive" size="icon" onClick={() => removeAdminAccess(admin.email)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {approvedAdmins.length === 0 && (
+                    <div className="text-sm text-slate-500 text-center p-6 border rounded-xl">
+                      No additional admins approved yet.
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-end"><Button variant="outline" onClick={() => setShowAdminManager(false)}>Close</Button></div>
+
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAdminManager(false);
+                      setAdminAccessMessage('');
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
