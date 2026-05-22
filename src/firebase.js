@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBcL9010wx4zqN2dclk2ZzNiCuP5K3fIfI",
+  apiKey: "import.meta.env.VITE_FIREBASE_API_KEY",
   authDomain: "stl8-cbm-dashboard.firebaseapp.com",
   projectId: "stl8-cbm-dashboard",
   storageBucket: "stl8-cbm-dashboard.firebasestorage.app",
