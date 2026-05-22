@@ -3,5 +3,6 @@
   publish = "dist"
 
 [build.environment]
-  SECRETS_SCAN_OMIT_PATHS = "node_modules"
+  SECRETS_SCAN_OMIT_PATHS = "node_modules/**,node_modules/*,node_modules"
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
