@@ -128,8 +128,12 @@ export default function ShiftReportDashboard() {
     repairNotes: '',
   });
 
-  const canEdit = currentUser.role === USER_ROLES.ADMIN;
-  const isPrimaryAdmin = currentUser.email === PRIMARY_ADMIN_EMAIL.toLowerCase();
+  const isPrimaryAdmin =
+  currentUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
+  const canEdit =
+  currentUser.role === USER_ROLES.ADMIN ||
+  isPrimaryAdmin;
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
