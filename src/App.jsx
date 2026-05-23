@@ -668,7 +668,18 @@ export default function ShiftReportDashboard() {
                         <td className="px-3 py-2"><Badge className="bg-slate-700 text-white text-[10px] px-2 py-0">{alarm.status}</Badge></td>
                         <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">{alarm.createdAt}</td>
                         <td className="px-3 py-2 text-center"><Button variant="outline" onClick={() => toggleAlarmDetails(alarm.id)} className="h-7 text-[11px] px-2">{alarm.showDetails ? <><ChevronUp className="mr-2 w-4 h-4" /> Hide Details</> : <><ChevronDown className="mr-2 w-4 h-4" /> View Details</>}</Button></td>
-                        {canEdit && ( <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>}
+                        {isEditMode && canEdit && (
+  <td className="px-3 py-2 text-center">
+    <Button
+      variant="destructive"
+      size="icon"
+      className="h-7 w-7"
+      onClick={() => removeAlarm(alarm.id)}
+    >
+      <Trash2 className="w-3 h-3" />
+    </Button>
+  </td>
+)}
                       </tr>
 
                       {alarm.showDetails && (
