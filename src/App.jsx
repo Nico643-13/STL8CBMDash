@@ -563,7 +563,7 @@ export default function ShiftReportDashboard() {
             </CardContent>
           </Card>
 
-          {isEditMode && canEdit && (
+          {canEdit && (
             <Card className="rounded-2xl shadow-lg">
               <CardHeader><CardTitle>Add Active Alarm</CardTitle></CardHeader>
               <CardContent className="space-y-3">
