@@ -607,7 +607,7 @@ export default function ShiftReportDashboard() {
         <Card className="rounded-2xl shadow-lg">
           <CardHeader className="py-3"><CardTitle className="text-lg">Next Day Scheduled DTW</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {isEditMode && canEdit && (
+            {canEdit && (
               <div className="grid grid-cols-1 md:grid-cols-6 gap-2 rounded-xl border bg-slate-50 p-3">
                 <select className="rounded-lg border border-slate-300 bg-white p-2 text-sm" value={newDTW.category} onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}>{categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}</select>
                 <Input placeholder="Asset" value={newDTW.asset} onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })} />
@@ -633,7 +633,7 @@ export default function ShiftReportDashboard() {
                       <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.component} onChange={(e) => updateDTWRepair(repair.id, 'component', e.target.value)} /> : repair.component}</td>
                       <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.issue} onChange={(e) => updateDTWRepair(repair.id, 'issue', e.target.value)} /> : repair.issue}</td>
                       <td className="px-3 py-2"><Textarea value={repair.repairNotes} disabled={!isEditMode || !canEdit} onChange={(e) => updateDTWRepair(repair.id, 'repairNotes', e.target.value)} className="min-h-[64px] text-xs" /></td>
-                      {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" onClick={() => removeDTWRepair(repair.id)}><Trash2 className="w-3 h-3" /></Button></td>}
+                      {canEdit && ( && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" onClick={() => removeDTWRepair(repair.id)}><Trash2 className="w-3 h-3" /></Button></td>}
                     </tr>
                   )) : <tr><td colSpan={isEditMode && canEdit ? 6 : 5} className="px-3 py-6 text-center text-sm text-slate-500">No scheduled downtime window repairs added.</td></tr>}
                 </tbody>
@@ -668,7 +668,7 @@ export default function ShiftReportDashboard() {
                         <td className="px-3 py-2"><Badge className="bg-slate-700 text-white text-[10px] px-2 py-0">{alarm.status}</Badge></td>
                         <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">{alarm.createdAt}</td>
                         <td className="px-3 py-2 text-center"><Button variant="outline" onClick={() => toggleAlarmDetails(alarm.id)} className="h-7 text-[11px] px-2">{alarm.showDetails ? <><ChevronUp className="mr-2 w-4 h-4" /> Hide Details</> : <><ChevronDown className="mr-2 w-4 h-4" /> View Details</>}</Button></td>
-                        {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>}
+                        {canEdit && ( <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>}
                       </tr>
 
                       {alarm.showDetails && (
