@@ -1,41 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import {
-  Trash2,
-  LogIn,
-  LogOut,
-  Search,
-  Plus,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  CheckCircle2,
-  Save,
-} from 'lucide-react';
+import { Trash2, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, CheckCircle2, Save } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { auth, db } from './firebase';
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signOut,
-} from 'firebase/auth';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  onSnapshot,
-  setDoc,
-} from 'firebase/firestore';
 
 const DEFAULT_TOTAL_SENSORS = 2887;
 const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
+const PREVIEW_ADMIN_PASSWORD = 'KingLobo05!';
 
 const USER_ROLES = {
   ADMIN: 'Admin',
@@ -79,225 +53,63 @@ const createDeepDiveTemplate = () => ({
   images: [],
 });
 
-const defaultReportInfo = {
-  date: new Date().toISOString().split('T')[0],
-  summary: '',
-};
-
 export default function ShiftReportDashboard() {
-  const [currentUser, setCurrentUser] = useState({
-    name: 'Guest Viewer',
-    email: '',
-    role: USER_ROLES.VIEWER,
-  });
-
-  const [authReady, setAuthReady] = useState(false);
+  const [currentUser, setCurrentUser] = useState({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
   const [isEditMode, setIsEditMode] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showAdminManager, setShowAdminManager] = useState(false);
-
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [adminAccessMessage, setAdminAccessMessage] = useState('');
   const [approvedAdmins, setApprovedAdmins] = useState([]);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [alarmEntryMessage, setAlarmEntryMessage] = useState('');
+  const [lastSaved, setLastSaved] = useState('Not saved yet');
 
-  const [reportInfo, setReportInfo] = useState(defaultReportInfo);
+  const [reportInfo, setReportInfo] = useState({
+    date: new Date().toISOString().split('T')[0],
+    summary: '',
+  });
+
   const [alarms, setAlarms] = useState([]);
   const [scheduledDTW, setScheduledDTW] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [lastSaved, setLastSaved] = useState('Not saved yet');
-  const [saveMessage, setSaveMessage] = useState('');
 
-  const [newAlarm, setNewAlarm] = useState({
-    asset: '',
-    component: '',
-    issue: '',
-    category: 'Critical',
-  });
+  const [newAlarm, setNewAlarm] = useState({ asset: '', component: '', issue: '', category: 'Critical' });
+  const [newDTW, setNewDTW] = useState({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
 
-  const [newDTW, setNewDTW] = useState({
-    category: 'Critical',
-    asset: '',
-    component: '',
-    issue: '',
-    customIssue: '',
-    repairNotes: '',
-  });
+  const canEdit = currentUser.role === USER_ROLES.ADMIN;
+  const isPrimaryAdmin = currentUser.email === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
-  const isPrimaryAdmin =
-  currentUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
-
-  const canEdit =
-  currentUser.role === USER_ROLES.ADMIN ||
-  isPrimaryAdmin;
-
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser?.email) {
-        setCurrentUser({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
-        setIsEditMode(false);
-        setAuthReady(true);
-        return;
-      }
-
-      const email = firebaseUser.email.toLowerCase();
-
-      try {
-        const adminSnap = await getDoc(doc(db, 'adminUsers', email));
-        const approved = adminSnap.exists() || email === PRIMARY_ADMIN_EMAIL.toLowerCase();
-
-        if (email === PRIMARY_ADMIN_EMAIL.toLowerCase() && !adminSnap.exists()) {
-          await setDoc(
-            doc(db, 'adminUsers', email),
-            {
-              email,
-              role: USER_ROLES.ADMIN,
-              isPrimary: true,
-              approvedAt: new Date().toLocaleString(),
-            },
-            { merge: true }
-          );
-        }
-
-        setCurrentUser({
-          name: email,
-          email,
-          role: approved ? USER_ROLES.ADMIN : USER_ROLES.VIEWER,
-        });
-        setIsEditMode(approved);
-      } catch (error) {
-        console.error('Role check failed:', error);
-        setCurrentUser({ name: email, email, role: USER_ROLES.VIEWER });
-        setIsEditMode(false);
-      }
-
-      setAuthReady(true);
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribeAdmins = onSnapshot(collection(db, 'adminUsers'), (snapshot) => {
-      const admins = snapshot.docs.map((adminDoc) => ({
-        id: adminDoc.id,
-        ...adminDoc.data(),
-      }));
-      setApprovedAdmins(admins);
-    });
-
-    return () => unsubscribeAdmins();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribeDashboard = onSnapshot(doc(db, 'dashboards', 'current'), (snapshot) => {
-      if (!snapshot.exists()) return;
-
-      const data = snapshot.data();
-      setReportInfo(data.reportInfo || defaultReportInfo);
-      setAlarms(data.alarms || []);
-      setScheduledDTW(data.scheduledDTW || []);
-      setLastSaved(data.lastSaved || 'Recovered cloud report');
-    });
-
-    return () => unsubscribeDashboard();
-  }, []);
-
-  const saveDashboard = async () => {
-    if (!canEdit) return;
-
-    const savedTime = new Date().toLocaleString();
-
-    try {
-      await setDoc(
-        doc(db, 'dashboards', 'current'),
-        {
-          reportInfo,
-          alarms,
-          scheduledDTW,
-          lastSaved: savedTime,
-          updatedBy: currentUser.email,
-          updatedAt: savedTime,
-        },
-        { merge: true }
-      );
-
-      setLastSaved(savedTime);
-      setSaveMessage('Report saved to Firebase.');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('Save failed:', error);
-      setSaveMessage('Save failed. Check Firebase permissions.');
-    }
-  };
-
-  const handleLogin = async () => {
+  const handleLogin = () => {
     const normalizedEmail = loginEmail.trim().toLowerCase();
-
     if (!normalizedEmail || !loginPassword) {
       setLoginError('Enter your email and password.');
       return;
     }
 
-    try {
-      const primaryAdminLogin = normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase();
-
-      if (!primaryAdminLogin) {
-        const approvedSnap = await getDoc(doc(db, 'adminUsers', normalizedEmail));
-        if (!approvedSnap.exists()) {
-          setLoginError('This email is not approved for admin access.');
-          return;
-        }
-      }
-
-      try {
-        await signInWithEmailAndPassword(auth, normalizedEmail, loginPassword);
-      } catch (error) {
-        if (error.code === 'auth/user-not-found' && !primaryAdminLogin) {
-          await createUserWithEmailAndPassword(auth, normalizedEmail, loginPassword);
-          await setDoc(
-            doc(db, 'adminUsers', normalizedEmail),
-            {
-              email: normalizedEmail,
-              role: USER_ROLES.ADMIN,
-              passwordSetAt: new Date().toLocaleString(),
-            },
-            { merge: true }
-          );
-        } else {
-          throw error;
-        }
-      }
-
-      setShowLogin(false);
-      setLoginEmail('');
-      setLoginPassword('');
-      setLoginError('');
-    } catch (error) {
-      console.error('Login failed:', error);
-
-      if (error.code === 'auth/invalid-api-key') {
-        setLoginError('Firebase API key is invalid. Replace src/firebase.js with the exact Firebase config.');
-      } else if (error.code === 'auth/user-not-found') {
-        setLoginError('Account not found. Create the primary admin user in Firebase Authentication first.');
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        setLoginError('Incorrect email or password.');
-      } else if (error.code === 'auth/weak-password') {
-        setLoginError('Password must be at least 6 characters.');
-      } else if (error.code === 'auth/unauthorized-domain') {
-        setLoginError('This domain is not authorized in Firebase Authentication settings.');
-      } else {
-        setLoginError('Unable to login. Check Firebase Authentication settings.');
-      }
+    if (normalizedEmail !== PRIMARY_ADMIN_EMAIL.toLowerCase() && !approvedAdmins.some((admin) => admin.email === normalizedEmail)) {
+      setLoginError('This email is not approved for admin access.');
+      return;
     }
+
+    if (normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase() && loginPassword !== PREVIEW_ADMIN_PASSWORD) {
+      setLoginError('Preview password is KingLobo05!');
+      return;
+    }
+
+    setCurrentUser({ name: normalizedEmail, email: normalizedEmail, role: USER_ROLES.ADMIN });
+    setIsEditMode(true);
+    setShowLogin(false);
+    setLoginEmail('');
+    setLoginPassword('');
+    setLoginError('');
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const handleLogout = () => {
     setCurrentUser({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
     setIsEditMode(false);
     setShowAdminManager(false);
@@ -307,73 +119,61 @@ export default function ShiftReportDashboard() {
     setLoginError('');
   };
 
-  const grantAdminAccess = async () => {
-    const normalizedEmail = newAdminEmail.trim().toLowerCase();
+  const saveDashboard = () => {
+    const savedTime = new Date().toLocaleString();
+    setLastSaved(savedTime);
+    setSaveMessage('Report saved in preview mode.');
+    setTimeout(() => setSaveMessage(''), 3000);
+  };
 
+  const grantAdminAccess = () => {
+    const normalizedEmail = newAdminEmail.trim().toLowerCase();
     if (!isPrimaryAdmin) {
       setAdminAccessMessage('Only the primary admin can grant admin access.');
       return;
     }
-
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       setAdminAccessMessage('Enter a valid email address.');
       return;
     }
-
-    if (normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase()) {
-      setAdminAccessMessage('Primary admin already has access.');
+    if (approvedAdmins.some((admin) => admin.email === normalizedEmail)) {
+      setAdminAccessMessage('This user is already approved.');
       return;
     }
-
-    try {
-      await setDoc(
-        doc(db, 'adminUsers', normalizedEmail),
-        {
-          email: normalizedEmail,
-          role: USER_ROLES.ADMIN,
-          approvedAt: new Date().toLocaleString(),
-          approvedBy: currentUser.email,
-        },
-        { merge: true }
-      );
-
-      setNewAdminEmail('');
-      setAdminAccessMessage(`${normalizedEmail} approved. They can create their password from the Admin Login screen.`);
-    } catch (error) {
-      console.error('Grant access failed:', error);
-      setAdminAccessMessage('Unable to grant access. Check Firebase permissions.');
-    }
+    setApprovedAdmins([...approvedAdmins, { email: normalizedEmail, role: USER_ROLES.ADMIN, approvedAt: new Date().toLocaleString() }]);
+    setNewAdminEmail('');
+    setAdminAccessMessage(`${normalizedEmail} approved for admin access.`);
   };
 
-  const removeAdminAccess = async (email) => {
-    if (!isPrimaryAdmin || email === PRIMARY_ADMIN_EMAIL.toLowerCase()) return;
-    await deleteDoc(doc(db, 'adminUsers', email));
+  const removeAdminAccess = (email) => {
+    setApprovedAdmins(approvedAdmins.filter((admin) => admin.email !== email));
   };
 
-  const sendPasswordSetupEmail = async (email) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setAdminAccessMessage(`Password setup/reset email sent to ${email}.`);
-    } catch (error) {
-      console.error('Password email failed:', error);
-      setAdminAccessMessage('Firebase can only send a reset email after the user account exists. Have the user create their password first from Admin Login.');
-    }
+  const sendPasswordSetupEmail = (email) => {
+    setAdminAccessMessage(`Preview mode: password setup email would be sent to ${email}.`);
   };
 
   const exportToPDF = () => {
-    const originalEditMode = isEditMode;
-    const originalAlarms = alarms;
-    setIsEditMode(false);
-    setAlarms(alarms.map((alarm) => ({ ...alarm, showDetails: true })));
-    setTimeout(() => {
-      window.print();
-      setIsEditMode(originalEditMode);
-      setAlarms(originalAlarms);
-    }, 250);
+    window.print();
   };
 
   const addAlarm = () => {
-    if (!newAlarm.asset || !newAlarm.issue || !canEdit || !isEditMode) return;
+    if (!canEdit || !isEditMode) {
+      setAlarmEntryMessage('Edit Mode must be enabled before adding an alarm.');
+      return;
+    }
+
+    if (!newAlarm.asset.trim()) {
+      setAlarmEntryMessage('Enter an Asset / Conveyor ID before adding an alarm.');
+      return;
+    }
+
+    if (!newAlarm.issue) {
+      setAlarmEntryMessage('Select an Issue Description before adding an alarm.');
+      return;
+    }
+
+    setAlarmEntryMessage('');
 
     setAlarms([
       ...alarms,
@@ -388,19 +188,15 @@ export default function ShiftReportDashboard() {
         deepDive: createDeepDiveTemplate(),
       },
     ]);
-
     setNewAlarm({ asset: '', component: '', issue: '', category: 'Critical' });
+    setAlarmEntryMessage('Alarm added. Click Save Report to save your changes.');
+    setTimeout(() => setAlarmEntryMessage(''), 4000);
   };
 
   const addDTWRepair = () => {
     const finalIssue = newDTW.issue === 'Custom' ? newDTW.customIssue : newDTW.issue;
     if (!newDTW.asset || !finalIssue || !canEdit || !isEditMode) return;
-
-    setScheduledDTW([
-      ...scheduledDTW,
-      { ...newDTW, issue: finalIssue, customIssue: '', id: Date.now() },
-    ]);
-
+    setScheduledDTW([...scheduledDTW, { ...newDTW, issue: finalIssue, customIssue: '', id: Date.now() }]);
     setNewDTW({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
   };
 
@@ -408,33 +204,20 @@ export default function ShiftReportDashboard() {
     setScheduledDTW(scheduledDTW.map((repair) => (repair.id === id ? { ...repair, [field]: value } : repair)));
   };
 
-  const removeDTWRepair = (id) => {
-    setScheduledDTW(scheduledDTW.filter((repair) => repair.id !== id));
-  };
-
-  const removeAlarm = (id) => {
-    setAlarms(alarms.filter((alarm) => alarm.id !== id));
-  };
-
-  const toggleAlarmDetails = (id) => {
-    setAlarms(alarms.map((alarm) => (alarm.id === id ? { ...alarm, showDetails: !alarm.showDetails } : alarm)));
-  };
+  const removeDTWRepair = (id) => setScheduledDTW(scheduledDTW.filter((repair) => repair.id !== id));
+  const removeAlarm = (id) => setAlarms(alarms.filter((alarm) => alarm.id !== id));
+  const toggleAlarmDetails = (id) => setAlarms(alarms.map((alarm) => (alarm.id === id ? { ...alarm, showDetails: !alarm.showDetails } : alarm)));
 
   const updateAlarmField = (alarmId, field, value) => {
     setAlarms(
       alarms.map((alarm) => {
         if (alarm.id !== alarmId) return alarm;
         const updates = { [field]: value };
-
-        if (field === 'status' && value === 'Acknowledged') {
-          updates.acknowledgedAt = new Date().toLocaleString();
-        }
-
+        if (field === 'status' && value === 'Acknowledged') updates.acknowledgedAt = new Date().toLocaleString();
         if (field === 'status' && value === 'Resolved') {
           updates.resolvedAt = new Date().toLocaleString();
           updates.showDetails = false;
         }
-
         return { ...alarm, ...updates };
       })
     );
@@ -448,7 +231,6 @@ export default function ShiftReportDashboard() {
   const normalSensorCount = Math.max(DEFAULT_TOTAL_SENSORS - activeAlarmCount, 0);
   const activeAlarmPercent = ((activeAlarmCount / DEFAULT_TOTAL_SENSORS) * 100).toFixed(2);
   const normalSensorPercent = ((normalSensorCount / DEFAULT_TOTAL_SENSORS) * 100).toFixed(2);
-
   const countByCategory = (category) => alarms.filter((alarm) => alarm.category === category && alarm.status !== 'Resolved').length;
 
   const sensorHealthData = [
@@ -468,34 +250,15 @@ export default function ShiftReportDashboard() {
           alarm.issue.toLowerCase().includes(search) ||
           (alarm.component || '').toLowerCase().includes(search) ||
           (alarm.deepDive?.location || '').toLowerCase().includes(search);
-
         const matchesCategory = categoryFilter === 'All' || alarm.category === categoryFilter;
         return matchesSearch && matchesCategory;
       })
-      .sort((a, b) => {
-        const severityCompare = severityOrder[a.category] - severityOrder[b.category];
-        if (severityCompare !== 0) return severityCompare;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
+      .sort((a, b) => severityOrder[a.category] - severityOrder[b.category] || new Date(b.createdAt) - new Date(a.createdAt));
   }, [alarms, searchTerm, categoryFilter]);
 
   const sortedScheduledDTW = useMemo(() => {
-    return [...scheduledDTW].sort((a, b) => {
-      const severityCompare = severityOrder[a.category] - severityOrder[b.category];
-      if (severityCompare !== 0) return severityCompare;
-      return String(a.asset).localeCompare(String(b.asset));
-    });
+    return [...scheduledDTW].sort((a, b) => severityOrder[a.category] - severityOrder[b.category] || String(a.asset).localeCompare(String(b.asset)));
   }, [scheduledDTW]);
-
-  if (!authReady) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <Card className="rounded-2xl shadow-lg">
-          <CardContent className="p-6 text-sm text-slate-600">Loading STL8 CBM dashboard...</CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-100 p-6 print:bg-white print:p-2">
@@ -506,14 +269,9 @@ export default function ShiftReportDashboard() {
               <div className="flex items-center gap-3 text-center lg:text-left">
                 <div className="flex items-end gap-[3px] h-12 px-3.5 py-1 rounded-md bg-slate-900 border border-slate-800 shadow-inner">
                   {[12, 22, 16, 32, 20, 40, 18, 30].map((height, index) => (
-                    <div
-                      key={index}
-                      className="w-[5px] rounded-full bg-gradient-to-t from-cyan-500 via-sky-400 to-blue-300 opacity-95 shadow-[0_0_8px_rgba(56,189,248,0.45)]"
-                      style={{ height: `${height}px` }}
-                    />
+                    <div key={index} className="w-[5px] rounded-full bg-gradient-to-t from-cyan-500 via-sky-400 to-blue-300 opacity-95 shadow-[0_0_8px_rgba(56,189,248,0.45)]" style={{ height: `${height}px` }} />
                   ))}
                 </div>
-
                 <div>
                   <h1 className="text-base md:text-xl font-semibold text-white tracking-tight uppercase leading-none">STL8 CBM Crew</h1>
                   <p className="text-slate-400 text-[10px] md:text-xs font-medium tracking-wide mt-0.5">Condition Based Monitoring Program</p>
@@ -524,33 +282,13 @@ export default function ShiftReportDashboard() {
               </div>
 
               <div className="flex flex-wrap gap-1.5 print:hidden">
-                <Button
-                  onClick={() => {
-                    if (canEdit) setIsEditMode(!isEditMode);
-                    else setShowLogin(true);
-                  }}
-                  className={`${isEditMode ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-800'} text-white h-8 text-xs px-3`}
-                >
+                <Button onClick={() => (canEdit ? setIsEditMode(!isEditMode) : setShowLogin(true))} className={`${isEditMode ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-800'} text-white h-8 text-xs px-3`}>
                   {isEditMode ? 'Edit Mode Enabled' : canEdit ? 'View Only Mode' : 'Admin Login / Edit'}
                 </Button>
-
-                {canEdit && isEditMode && (
-                  <Button onClick={saveDashboard} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs px-3">
-                    <Save className="mr-2 h-4 w-4" /> Save Report
-                  </Button>
-                )}
-
+                {canEdit && isEditMode && <Button onClick={saveDashboard} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs px-3"><Save className="mr-2 h-4 w-4" /> Save Report</Button>}
                 <Button onClick={exportToPDF} className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3">Export PDF</Button>
-
-                {canEdit && isPrimaryAdmin && (
-                  <Button onClick={() => setShowAdminManager(true)} className="bg-purple-700 hover:bg-purple-800 text-white h-8 text-xs px-3">Manage Admin Access</Button>
-                )}
-
-                {canEdit && (
-                  <Button onClick={handleLogout} className="bg-red-700 hover:bg-red-800 text-white h-8 text-xs px-3">
-                    <LogOut className="mr-2 h-4 w-4" /> Exit Admin
-                  </Button>
-                )}
+                {canEdit && isPrimaryAdmin && <Button onClick={() => setShowAdminManager(true)} className="bg-purple-700 hover:bg-purple-800 text-white h-8 text-xs px-3">Manage Admin Access</Button>}
+                {canEdit && <Button onClick={handleLogout} className="bg-red-700 hover:bg-red-800 text-white h-8 text-xs px-3"><LogOut className="mr-2 h-4 w-4" /> Exit Admin</Button>}
               </div>
             </div>
           </CardContent>
@@ -569,18 +307,62 @@ export default function ShiftReportDashboard() {
 
           {canEdit && (
             <Card className="rounded-2xl shadow-lg">
-              <CardHeader><CardTitle>Add Active Alarm</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Add Active Alarm</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-3">
-                <Input placeholder="Asset / Conveyor ID" value={newAlarm.asset} onChange={(e) => setNewAlarm({ ...newAlarm, asset: e.target.value })} />
-                <Input placeholder="Component" value={newAlarm.component} onChange={(e) => setNewAlarm({ ...newAlarm, component: e.target.value })} />
-                <select className="w-full border rounded-lg p-2" value={newAlarm.issue} onChange={(e) => setNewAlarm({ ...newAlarm, issue: e.target.value })}>
+                {alarmEntryMessage && (
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">
+                    {alarmEntryMessage}
+                  </div>
+                )}
+
+                {!isEditMode && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    Edit Mode is currently off. Click View Only Mode / Edit Mode in the header to enable alarm entry.
+                  </div>
+                )}
+
+                <Input
+                  placeholder="Asset / Conveyor ID"
+                  value={newAlarm.asset}
+                  disabled={!isEditMode}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, asset: e.target.value })}
+                />
+
+                <Input
+                  placeholder="Component"
+                  value={newAlarm.component}
+                  disabled={!isEditMode}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, component: e.target.value })}
+                />
+
+                <select
+                  className="w-full border rounded-lg p-2 disabled:bg-slate-100 disabled:text-slate-400"
+                  value={newAlarm.issue}
+                  disabled={!isEditMode}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, issue: e.target.value })}
+                >
                   <option value="">Select Issue Description</option>
                   {issueOptions.map((issue) => <option key={issue} value={issue}>{issue}</option>)}
                 </select>
-                <select className="w-full border rounded-lg p-2" value={newAlarm.category} onChange={(e) => setNewAlarm({ ...newAlarm, category: e.target.value })}>
+
+                <select
+                  className="w-full border rounded-lg p-2 disabled:bg-slate-100 disabled:text-slate-400"
+                  value={newAlarm.category}
+                  disabled={!isEditMode}
+                  onChange={(e) => setNewAlarm({ ...newAlarm, category: e.target.value })}
+                >
                   {categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
                 </select>
-                <Button onClick={addAlarm} className="w-full"><Plus className="mr-2 h-4 w-4" /> Add Alarm</Button>
+
+                <Button
+                  onClick={addAlarm}
+                  disabled={!isEditMode || !newAlarm.asset.trim() || !newAlarm.issue}
+                  className="w-full"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Alarm
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -611,7 +393,7 @@ export default function ShiftReportDashboard() {
         <Card className="rounded-2xl shadow-lg">
           <CardHeader className="py-3"><CardTitle className="text-lg">Next Day Scheduled DTW</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {canEdit && (
+            {isEditMode && canEdit && (
               <div className="grid grid-cols-1 md:grid-cols-6 gap-2 rounded-xl border bg-slate-50 p-3">
                 <select className="rounded-lg border border-slate-300 bg-white p-2 text-sm" value={newDTW.category} onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}>{categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}</select>
                 <Input placeholder="Asset" value={newDTW.asset} onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })} />
@@ -625,7 +407,6 @@ export default function ShiftReportDashboard() {
                 <Button onClick={addDTWRepair}><Plus className="mr-2 h-4 w-4" /> Add DTW</Button>
               </div>
             )}
-
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead><tr className="bg-slate-900 text-white"><th className="px-3 py-2 text-left">Severity</th><th className="px-3 py-2 text-left">Asset</th><th className="px-3 py-2 text-left">Component</th><th className="px-3 py-2 text-left">Issue</th><th className="px-3 py-2 text-left">Repair Description</th>{isEditMode && canEdit && <th className="px-3 py-2 text-center">Remove</th>}</tr></thead>
@@ -652,12 +433,10 @@ export default function ShiftReportDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
               {categories.map((cat) => <div key={cat.name} className={`px-3 py-2 rounded-lg text-white ${cat.color}`}><h3 className="text-xs font-semibold uppercase">{cat.name}</h3><p className="text-lg font-bold">{countByCategory(cat.name)}</p></div>)}
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-4 print:hidden">
               <div className="relative lg:col-span-2"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><Input placeholder="Search asset, issue, component, or location" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" /></div>
               <select className="rounded-lg border p-2 text-sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}><option value="All">All Severities</option>{categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}</select>
             </div>
-
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
               <table className="w-full min-w-[1100px] border-collapse text-xs">
                 <thead><tr className="bg-slate-900 text-white uppercase tracking-wide"><th className="px-3 py-2 text-left">Severity</th><th className="px-3 py-2 text-left">Asset</th><th className="px-3 py-2 text-left">Issue</th><th className="px-3 py-2 text-left">Component</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">Created</th><th className="px-3 py-2 text-center">Details</th>{isEditMode && canEdit && <th className="px-3 py-2 text-center">Remove</th>}</tr></thead>
@@ -672,43 +451,16 @@ export default function ShiftReportDashboard() {
                         <td className="px-3 py-2"><Badge className="bg-slate-700 text-white text-[10px] px-2 py-0">{alarm.status}</Badge></td>
                         <td className="px-3 py-2 text-[11px] text-slate-500 whitespace-nowrap">{alarm.createdAt}</td>
                         <td className="px-3 py-2 text-center"><Button variant="outline" onClick={() => toggleAlarmDetails(alarm.id)} className="h-7 text-[11px] px-2">{alarm.showDetails ? <><ChevronUp className="mr-2 w-4 h-4" /> Hide Details</> : <><ChevronDown className="mr-2 w-4 h-4" /> View Details</>}</Button></td>
-                        {isEditMode && canEdit && (
-  <td className="px-3 py-2 text-center">
-    <Button
-      variant="destructive"
-      size="icon"
-      className="h-7 w-7"
-      onClick={() => removeAlarm(alarm.id)}
-    >
-      <Trash2 className="w-3 h-3" />
-    </Button>
-  </td>
-)}
+                        {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>}
                       </tr>
-
                       {alarm.showDetails && (
-                        <tr className="bg-slate-50 border-t"><td colSpan={isEditMode && canEdit ? 8 : 7} className="p-0">
-                          <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1100px] border-collapse">
-                              <thead><tr className="bg-slate-900 text-white text-sm"><th className="border px-4 py-3 text-left">Location</th><th className="border px-4 py-3 text-left text-orange-300">Thermographic Analysis</th><th className="border px-4 py-3 text-left text-blue-300">Vibration Analysis</th><th className="border px-4 py-3 text-left">Trend</th><th className="border px-4 py-3 text-left">Status / Component</th><th className="border px-4 py-3 text-left">Sensor Data Snapshot</th></tr></thead>
-                              <tbody><tr className="align-top">
-                                <td className="border p-3"><Input placeholder="Area / Location" disabled={!isEditMode} value={alarm.deepDive.location} onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)} /></td>
-                                <td className="border p-3 bg-orange-50"><Textarea placeholder="Thermal findings / notes" disabled={!isEditMode} value={alarm.deepDive.thermographicNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)} className="min-h-[120px]" /></td>
-                                <td className="border p-3 bg-blue-50"><Textarea placeholder="Vibration findings / notes" disabled={!isEditMode} value={alarm.deepDive.vibrationNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'vibrationNotes', e.target.value)} className="min-h-[120px]" /></td>
-                                <td className="border p-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.deepDive.trend} onChange={(e) => updateAlarmDeepDive(alarm.id, 'trend', e.target.value)}><option>Stable</option><option>Rising</option><option>Falling</option><option>Intermittent Spikes</option></select></td>
-                                <td className="border p-3 space-y-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.status} onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}><option>Open</option><option>Acknowledged</option><option>Monitoring</option><option>Resolved</option></select><Input placeholder="Component" disabled={!isEditMode} value={alarm.component} onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)} /><div className="text-xs text-slate-500"><p><Clock className="inline w-3 h-3 mr-1" />Created: {alarm.createdAt}</p>{alarm.acknowledgedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Ack: {alarm.acknowledgedAt}</p>}{alarm.resolvedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Resolved: {alarm.resolvedAt}</p>}</div></td>
-                                <td className="border p-3"><div className="text-xs text-slate-500">Cloud screenshot upload can be added next with Firebase Storage.</div></td>
-                              </tr></tbody>
-                            </table>
-                          </div>
-                        </td></tr>
+                        <tr className="bg-slate-50 border-t"><td colSpan={isEditMode && canEdit ? 8 : 7} className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[1100px] border-collapse"><thead><tr className="bg-slate-900 text-white text-sm"><th className="border px-4 py-3 text-left">Location</th><th className="border px-4 py-3 text-left text-orange-300">Thermographic Analysis</th><th className="border px-4 py-3 text-left text-blue-300">Vibration Analysis</th><th className="border px-4 py-3 text-left">Trend</th><th className="border px-4 py-3 text-left">Status / Component</th><th className="border px-4 py-3 text-left">Sensor Data Snapshot</th></tr></thead><tbody><tr className="align-top"><td className="border p-3"><Input placeholder="Area / Location" disabled={!isEditMode} value={alarm.deepDive.location} onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)} /></td><td className="border p-3 bg-orange-50"><Textarea placeholder="Thermal findings / notes" disabled={!isEditMode} value={alarm.deepDive.thermographicNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)} className="min-h-[120px]" /></td><td className="border p-3 bg-blue-50"><Textarea placeholder="Vibration findings / notes" disabled={!isEditMode} value={alarm.deepDive.vibrationNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'vibrationNotes', e.target.value)} className="min-h-[120px]" /></td><td className="border p-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.deepDive.trend} onChange={(e) => updateAlarmDeepDive(alarm.id, 'trend', e.target.value)}><option>Stable</option><option>Rising</option><option>Falling</option><option>Intermittent Spikes</option></select></td><td className="border p-3 space-y-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.status} onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}><option>Open</option><option>Acknowledged</option><option>Monitoring</option><option>Resolved</option></select><Input placeholder="Component" disabled={!isEditMode} value={alarm.component} onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)} /><div className="text-xs text-slate-500"><p><Clock className="inline w-3 h-3 mr-1" />Created: {alarm.createdAt}</p>{alarm.acknowledgedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Ack: {alarm.acknowledgedAt}</p>}{alarm.resolvedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Resolved: {alarm.resolvedAt}</p>}</div></td><td className="border p-3"><div className="text-xs text-slate-500">Cloud screenshot upload can be added next with Firebase Storage.</div></td></tr></tbody></table></div></td></tr>
                       )}
                     </React.Fragment>
                   ))}
                 </tbody>
               </table>
             </div>
-
             {filteredAlarms.length === 0 && <div className="rounded-xl border border-dashed bg-slate-50 p-8 text-center text-slate-500">No alarms match the current filters.</div>}
           </CardContent>
         </Card>
@@ -722,7 +474,7 @@ export default function ShiftReportDashboard() {
                 <Input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }} />
                 {loginError && <div className="text-sm text-red-600">{loginError}</div>}
                 <div className="flex gap-2"><Button onClick={handleLogin} className="flex-1 bg-slate-950 text-white"><LogIn className="mr-2 h-4 w-4" /> Login</Button><Button variant="outline" className="flex-1" onClick={() => { setShowLogin(false); setLoginError(''); }}>Cancel</Button></div>
-                <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-600">Primary admin must already exist in Firebase Authentication. Approved users can create their account on first login.</div>
+                <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-600">Preview mode login: nicopre@amazon.com / KingLobo05!</div>
               </CardContent>
             </Card>
           </div>
@@ -736,12 +488,7 @@ export default function ShiftReportDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2"><Input type="email" placeholder="Enter admin email" value={newAdminEmail} onChange={(e) => setNewAdminEmail(e.target.value)} /><Button onClick={grantAdminAccess} className="bg-purple-700 hover:bg-purple-800 text-white">Grant Access</Button></div>
                 {adminAccessMessage && <div className="text-sm text-slate-700 bg-slate-100 rounded-lg p-3">{adminAccessMessage}</div>}
                 <div className="space-y-2">
-                  {approvedAdmins.map((admin) => (
-                    <div key={admin.email} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
-                      <div><p className="font-medium text-slate-900">{admin.email}</p><p className="text-xs text-slate-500">Role: {admin.role || 'Admin'} · Approved: {admin.approvedAt || 'Existing'} · Password: {admin.passwordSetAt ? 'Set' : 'Pending first login'}</p></div>
-                      <div className="flex gap-2"><Button variant="outline" onClick={() => sendPasswordSetupEmail(admin.email)} className="h-8 text-xs px-3">Send Reset Email</Button>{admin.email !== PRIMARY_ADMIN_EMAIL.toLowerCase() && <Button variant="destructive" size="icon" onClick={() => removeAdminAccess(admin.email)}><Trash2 className="w-4 h-4" /></Button>}</div>
-                    </div>
-                  ))}
+                  {approvedAdmins.map((admin) => <div key={admin.email} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><p className="font-medium text-slate-900">{admin.email}</p><p className="text-xs text-slate-500">Role: {admin.role || 'Admin'} · Approved: {admin.approvedAt || 'Existing'}</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => sendPasswordSetupEmail(admin.email)} className="h-8 text-xs px-3">Send Setup Email</Button>{admin.email !== PRIMARY_ADMIN_EMAIL.toLowerCase() && <Button variant="destructive" size="icon" onClick={() => removeAdminAccess(admin.email)}><Trash2 className="w-4 h-4" /></Button>}</div></div>)}
                   {approvedAdmins.length === 0 && <div className="text-sm text-slate-500 text-center p-6 border rounded-xl">No additional admins approved yet.</div>}
                 </div>
                 <div className="flex justify-end"><Button variant="outline" onClick={() => { setShowAdminManager(false); setAdminAccessMessage(''); }}>Close</Button></div>
