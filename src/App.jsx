@@ -8,7 +8,7 @@ import { Trash2, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, Che
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { auth, db } from './firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 const DEFAULT_TOTAL_SENSORS = 2887;
 const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
@@ -211,7 +211,7 @@ export default function ShiftReportDashboard() {
     }
   };
 
-  const grantAdminAccess = () => {
+  const grantAdminAccess = async () => {
     const normalizedEmail = newAdminEmail.trim().toLowerCase();
     if (!isPrimaryAdmin) {
       setAdminAccessMessage('Only the primary admin can grant admin access.');
@@ -225,17 +225,50 @@ export default function ShiftReportDashboard() {
       setAdminAccessMessage('This user is already approved.');
       return;
     }
-    setApprovedAdmins([...approvedAdmins, { email: normalizedEmail, role: USER_ROLES.ADMIN, approvedAt: new Date().toLocaleString() }]);
-    setNewAdminEmail('');
-    setAdminAccessMessage(`${normalizedEmail} approved for admin access.`);
+
+    const updatedAdmins = [
+      ...approvedAdmins,
+      { email: normalizedEmail, role: USER_ROLES.ADMIN, approvedAt: new Date().toLocaleString() },
+    ];
+
+    try {
+      setApprovedAdmins(updatedAdmins);
+      await setDoc(doc(db, ...REPORT_DOC_PATH), { approvedAdmins: updatedAdmins }, { merge: true });
+      setNewAdminEmail('');
+      setAdminAccessMessage(`${normalizedEmail} approved for admin access. If this user already exists in Firebase Authentication, click Send Setup Email.`);
+    } catch (error) {
+      console.error('Admin approval save failed:', error);
+      setAdminAccessMessage('Admin approval could not be saved to Firebase. Check Firestore rules.');
+    }
   };
 
-  const removeAdminAccess = (email) => {
-    setApprovedAdmins(approvedAdmins.filter((admin) => admin.email !== email));
+  const removeAdminAccess = async (email) => {
+    const updatedAdmins = approvedAdmins.filter((admin) => admin.email !== email);
+    setApprovedAdmins(updatedAdmins);
+
+    try {
+      await setDoc(doc(db, ...REPORT_DOC_PATH), { approvedAdmins: updatedAdmins }, { merge: true });
+    } catch (error) {
+      console.error('Admin removal save failed:', error);
+      setAdminAccessMessage('Admin removal could not be saved to Firebase. Check Firestore rules.');
+    }
   };
 
-  const sendPasswordSetupEmail = (email) => {
-    setAdminAccessMessage(`Preview mode: password setup email would be sent to ${email}.`);
+  const sendPasswordSetupEmail = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setAdminAccessMessage(`Firebase password setup/reset email sent to ${email}.`);
+    } catch (error) {
+      console.error('Password setup email failed:', error);
+
+      if (error.code === 'auth/user-not-found') {
+        setAdminAccessMessage(`${email} is approved, but no Firebase Authentication account exists yet. Create this user in Firebase Authentication first, then send the setup email again.`);
+      } else if (error.code === 'auth/invalid-email') {
+        setAdminAccessMessage('Invalid email address.');
+      } else {
+        setAdminAccessMessage('Password setup email failed. Check Firebase Authentication email settings and authorized domains.');
+      }
+    }
   };
 
   const exportToPDF = () => {
