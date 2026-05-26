@@ -6,12 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, CheckCircle2, Save } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 const DEFAULT_TOTAL_SENSORS = 2887;
 const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
-const PREVIEW_ADMIN_PASSWORD = 'KingLobo05!';
 const REPORT_DOC_PATH = ['dashboards', 'currentShiftReport'];
 
 const USER_ROLES = {
@@ -84,8 +84,30 @@ export default function ShiftReportDashboard() {
   const [newAlarm, setNewAlarm] = useState({ asset: '', component: '', issue: '', category: 'Critical' });
   const [newDTW, setNewDTW] = useState({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
 
-  const canEdit = currentUser.role === USER_ROLES.ADMIN;
-  const isPrimaryAdmin = currentUser.email === PRIMARY_ADMIN_EMAIL.toLowerCase();
+  const isPrimaryAdmin = currentUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+  const canEdit = currentUser.role === USER_ROLES.ADMIN || isPrimaryAdmin;
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser?.email) {
+        setCurrentUser({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
+        setIsEditMode(false);
+        return;
+      }
+
+      const email = firebaseUser.email.toLowerCase();
+      const adminUser = email === PRIMARY_ADMIN_EMAIL.toLowerCase() || approvedAdmins.some((admin) => admin.email === email);
+
+      setCurrentUser({
+        name: email,
+        email,
+        role: adminUser ? USER_ROLES.ADMIN : USER_ROLES.VIEWER,
+      });
+      setIsEditMode(adminUser);
+    });
+
+    return () => unsubscribeAuth();
+  }, [approvedAdmins]);
 
   useEffect(() => {
     const reportRef = doc(db, ...REPORT_DOC_PATH);
@@ -115,7 +137,7 @@ export default function ShiftReportDashboard() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const normalizedEmail = loginEmail.trim().toLowerCase();
     if (!normalizedEmail || !loginPassword) {
       setLoginError('Enter your email and password.');
@@ -127,20 +149,28 @@ export default function ShiftReportDashboard() {
       return;
     }
 
-    if (normalizedEmail === PRIMARY_ADMIN_EMAIL.toLowerCase() && loginPassword !== PREVIEW_ADMIN_PASSWORD) {
-      setLoginError('Preview password is KingLobo05!');
-      return;
+    try {
+      await signInWithEmailAndPassword(auth, normalizedEmail, loginPassword);
+      setShowLogin(false);
+      setLoginEmail('');
+      setLoginPassword('');
+      setLoginError('');
+    } catch (error) {
+      console.error('Firebase login failed:', error);
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        setLoginError('Incorrect email or password.');
+      } else if (error.code === 'auth/user-not-found') {
+        setLoginError('User not found in Firebase Authentication.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        setLoginError('This Netlify domain is not authorized in Firebase Authentication settings.');
+      } else {
+        setLoginError('Unable to login with Firebase. Check Authentication settings.');
+      }
     }
-
-    setCurrentUser({ name: normalizedEmail, email: normalizedEmail, role: USER_ROLES.ADMIN });
-    setIsEditMode(true);
-    setShowLogin(false);
-    setLoginEmail('');
-    setLoginPassword('');
-    setLoginError('');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     setCurrentUser({ name: 'Guest Viewer', email: '', role: USER_ROLES.VIEWER });
     setIsEditMode(false);
     setShowAdminManager(false);
@@ -529,7 +559,7 @@ export default function ShiftReportDashboard() {
                 <Input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }} />
                 {loginError && <div className="text-sm text-red-600">{loginError}</div>}
                 <div className="flex gap-2"><Button onClick={handleLogin} className="flex-1 bg-slate-950 text-white"><LogIn className="mr-2 h-4 w-4" /> Login</Button><Button variant="outline" className="flex-1" onClick={() => { setShowLogin(false); setLoginError(''); }}>Cancel</Button></div>
-                <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-600">Preview mode login: nicopre@amazon.com / KingLobo05!</div>
+                <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-600">Use your Firebase Authentication email and password.</div>
               </CardContent>
             </Card>
           </div>
