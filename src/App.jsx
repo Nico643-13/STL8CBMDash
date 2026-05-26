@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,10 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, CheckCircle2, Save } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { db } from './firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 const DEFAULT_TOTAL_SENSORS = 2887;
 const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
 const PREVIEW_ADMIN_PASSWORD = 'KingLobo05!';
+const REPORT_DOC_PATH = ['dashboards', 'currentShiftReport'];
 
 const USER_ROLES = {
   ADMIN: 'Admin',
@@ -84,6 +87,34 @@ export default function ShiftReportDashboard() {
   const canEdit = currentUser.role === USER_ROLES.ADMIN;
   const isPrimaryAdmin = currentUser.email === PRIMARY_ADMIN_EMAIL.toLowerCase();
 
+  useEffect(() => {
+    const reportRef = doc(db, ...REPORT_DOC_PATH);
+
+    const unsubscribe = onSnapshot(
+      reportRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setLastSaved('No cloud report saved yet');
+          return;
+        }
+
+        const parsed = snapshot.data();
+        setReportInfo(parsed.reportInfo || reportInfo);
+        setAlarms(parsed.alarms || []);
+        setScheduledDTW(parsed.scheduledDTW || []);
+        setApprovedAdmins(parsed.approvedAdmins || []);
+        setLastSaved(parsed.lastSaved || 'Recovered cloud report');
+      },
+      (error) => {
+        console.error('Cloud report load failed:', error);
+        setSaveMessage('Cloud report could not be loaded. Check Firebase Firestore rules.');
+        setTimeout(() => setSaveMessage(''), 5000);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
   const handleLogin = () => {
     const normalizedEmail = loginEmail.trim().toLowerCase();
     if (!normalizedEmail || !loginPassword) {
@@ -119,11 +150,35 @@ export default function ShiftReportDashboard() {
     setLoginError('');
   };
 
-  const saveDashboard = () => {
+  const saveDashboard = async () => {
+    if (!canEdit) {
+      setSaveMessage('Only an admin can save the shift report.');
+      setTimeout(() => setSaveMessage(''), 5000);
+      return;
+    }
+
     const savedTime = new Date().toLocaleString();
-    setLastSaved(savedTime);
-    setSaveMessage('Report saved in preview mode.');
-    setTimeout(() => setSaveMessage(''), 3000);
+
+    const reportSnapshot = {
+      reportInfo,
+      alarms,
+      scheduledDTW,
+      approvedAdmins,
+      lastSaved: savedTime,
+      updatedBy: currentUser.email || 'Unknown admin',
+      updatedAt: savedTime,
+    };
+
+    try {
+      await setDoc(doc(db, ...REPORT_DOC_PATH), reportSnapshot, { merge: true });
+      setLastSaved(savedTime);
+      setSaveMessage('Report saved to Firebase. The latest shift report will now load on other computers.');
+      setTimeout(() => setSaveMessage(''), 5000);
+    } catch (error) {
+      console.error('Cloud save failed:', error);
+      setSaveMessage('Cloud save failed. Check Firebase Firestore rules and Netlify environment variables.');
+      setTimeout(() => setSaveMessage(''), 6000);
+    }
   };
 
   const grantAdminAccess = () => {
