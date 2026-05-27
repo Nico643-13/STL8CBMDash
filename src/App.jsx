@@ -688,11 +688,16 @@ export default function ShiftReportDashboard() {
             {filteredAlarms.length === 0 && <div className="rounded-xl border border-dashed bg-slate-50 p-8 text-center text-slate-500">No alarms match the current filters.</div>}
           </CardContent>
         </Card>
-
         {showLogin && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden">
             <Card className="w-full max-w-md rounded-2xl shadow-2xl">
-              <CardHeader><CardTitle>Admin Login</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Admin Login</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-4">
-                <Input type="email" placeholder="Admin email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
-                <Input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLogi
+                <Input
+                  type="email"
+                  placeholder="Admin email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+        
