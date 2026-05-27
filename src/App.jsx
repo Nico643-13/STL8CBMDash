@@ -6,9 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, LogIn, LogOut, Search, Plus, ChevronDown, ChevronUp, Clock, CheckCircle2, Save } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { auth, db } from './firebase';
+import { auth, db, storage } from './firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 const DEFAULT_TOTAL_SENSORS = 2887;
 const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
@@ -69,6 +70,7 @@ export default function ShiftReportDashboard() {
   const [approvedAdmins, setApprovedAdmins] = useState([]);
   const [saveMessage, setSaveMessage] = useState('');
   const [alarmEntryMessage, setAlarmEntryMessage] = useState('');
+  const [snapshotUploadMessage, setSnapshotUploadMessage] = useState('');
   const [lastSaved, setLastSaved] = useState('Not saved yet');
 
   const [reportInfo, setReportInfo] = useState({
@@ -345,6 +347,77 @@ export default function ShiftReportDashboard() {
     setAlarms(alarms.map((alarm) => (alarm.id === alarmId ? { ...alarm, deepDive: { ...alarm.deepDive, [field]: value } } : alarm)));
   };
 
+  const uploadSensorSnapshot = async (alarmId, event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!canEdit || !isEditMode) {
+      setSnapshotUploadMessage('Edit Mode must be enabled before uploading a sensor snapshot.');
+      setTimeout(() => setSnapshotUploadMessage(''), 5000);
+      return;
+    }
+
+    try {
+      setSnapshotUploadMessage('Uploading sensor data snapshot...');
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const snapshotPath = `sensorSnapshots/${alarmId}/${Date.now()}-${safeFileName}`;
+      const snapshotRef = ref(storage, snapshotPath);
+
+      await uploadBytes(snapshotRef, file);
+      const downloadURL = await getDownloadURL(snapshotRef);
+
+      const uploadedSnapshot = {
+        id: `${alarmId}-${Date.now()}`,
+        name: file.name,
+        url: downloadURL,
+        path: snapshotPath,
+        uploadedAt: new Date().toLocaleString(),
+        uploadedBy: currentUser.email || 'Unknown admin',
+      };
+
+      setAlarms((currentAlarms) =>
+        currentAlarms.map((alarm) =>
+          alarm.id === alarmId
+            ? {
+                ...alarm,
+                deepDive: {
+                  ...alarm.deepDive,
+                  images: [...(alarm.deepDive.images || []), uploadedSnapshot],
+                },
+              }
+            : alarm
+        )
+      );
+
+      setSnapshotUploadMessage('Sensor data snapshot uploaded. Click Save Report to save it for other computers.');
+      setTimeout(() => setSnapshotUploadMessage(''), 6000);
+    } catch (error) {
+      console.error('Sensor snapshot upload failed:', error);
+      setSnapshotUploadMessage('Snapshot upload failed. Check Firebase Storage rules and Netlify environment variables.');
+      setTimeout(() => setSnapshotUploadMessage(''), 6000);
+    }
+  };
+
+  const removeSensorSnapshot = (alarmId, imageId) => {
+    setAlarms((currentAlarms) =>
+      currentAlarms.map((alarm) =>
+        alarm.id === alarmId
+          ? {
+              ...alarm,
+              deepDive: {
+                ...alarm.deepDive,
+                images: (alarm.deepDive.images || []).filter((image) => image.id !== imageId),
+              },
+            }
+          : alarm
+      )
+    );
+    setSnapshotUploadMessage('Snapshot removed from report. Click Save Report to save this change.');
+    setTimeout(() => setSnapshotUploadMessage(''), 5000);
+  };
+
   const activeAlarmCount = alarms.filter((alarm) => alarm.status !== 'Resolved').length;
   const normalSensorCount = Math.max(DEFAULT_TOTAL_SENSORS - activeAlarmCount, 0);
   const activeAlarmPercent = ((activeAlarmCount / DEFAULT_TOTAL_SENSORS) * 100).toFixed(2);
@@ -413,6 +486,7 @@ export default function ShiftReportDashboard() {
         </Card>
 
         {saveMessage && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{saveMessage}</div>}
+        {snapshotUploadMessage && <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-700">{snapshotUploadMessage}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="rounded-2xl shadow-lg">
@@ -572,7 +646,55 @@ export default function ShiftReportDashboard() {
                         {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>}
                       </tr>
                       {alarm.showDetails && (
-                        <tr className="bg-slate-50 border-t"><td colSpan={isEditMode && canEdit ? 8 : 7} className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[1100px] border-collapse"><thead><tr className="bg-slate-900 text-white text-sm"><th className="border px-4 py-3 text-left">Location</th><th className="border px-4 py-3 text-left text-orange-300">Thermographic Analysis</th><th className="border px-4 py-3 text-left text-blue-300">Vibration Analysis</th><th className="border px-4 py-3 text-left">Trend</th><th className="border px-4 py-3 text-left">Status / Component</th><th className="border px-4 py-3 text-left">Sensor Data Snapshot</th></tr></thead><tbody><tr className="align-top"><td className="border p-3"><Input placeholder="Area / Location" disabled={!isEditMode} value={alarm.deepDive.location} onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)} /></td><td className="border p-3 bg-orange-50"><Textarea placeholder="Thermal findings / notes" disabled={!isEditMode} value={alarm.deepDive.thermographicNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)} className="min-h-[120px]" /></td><td className="border p-3 bg-blue-50"><Textarea placeholder="Vibration findings / notes" disabled={!isEditMode} value={alarm.deepDive.vibrationNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'vibrationNotes', e.target.value)} className="min-h-[120px]" /></td><td className="border p-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.deepDive.trend} onChange={(e) => updateAlarmDeepDive(alarm.id, 'trend', e.target.value)}><option>Stable</option><option>Rising</option><option>Falling</option><option>Intermittent Spikes</option></select></td><td className="border p-3 space-y-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.status} onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}><option>Open</option><option>Acknowledged</option><option>Monitoring</option><option>Resolved</option></select><Input placeholder="Component" disabled={!isEditMode} value={alarm.component} onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)} /><div className="text-xs text-slate-500"><p><Clock className="inline w-3 h-3 mr-1" />Created: {alarm.createdAt}</p>{alarm.acknowledgedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Ack: {alarm.acknowledgedAt}</p>}{alarm.resolvedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Resolved: {alarm.resolvedAt}</p>}</div></td><td className="border p-3"><div className="text-xs text-slate-500">Cloud screenshot upload can be added next with Firebase Storage.</div></td></tr></tbody></table></div></td></tr>
+                        <tr className="bg-slate-50 border-t"><td colSpan={isEditMode && canEdit ? 8 : 7} className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[1100px] border-collapse"><thead><tr className="bg-slate-900 text-white text-sm"><th className="border px-4 py-3 text-left">Location</th><th className="border px-4 py-3 text-left text-orange-300">Thermographic Analysis</th><th className="border px-4 py-3 text-left text-blue-300">Vibration Analysis</th><th className="border px-4 py-3 text-left">Trend</th><th className="border px-4 py-3 text-left">Status / Component</th><th className="border px-4 py-3 text-left">Sensor Data Snapshot</th></tr></thead><tbody><tr className="align-top"><td className="border p-3"><Input placeholder="Area / Location" disabled={!isEditMode} value={alarm.deepDive.location} onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)} /></td><td className="border p-3 bg-orange-50"><Textarea placeholder="Thermal findings / notes" disabled={!isEditMode} value={alarm.deepDive.thermographicNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)} className="min-h-[120px]" /></td><td className="border p-3 bg-blue-50"><Textarea placeholder="Vibration findings / notes" disabled={!isEditMode} value={alarm.deepDive.vibrationNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'vibrationNotes', e.target.value)} className="min-h-[120px]" /></td><td className="border p-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.deepDive.trend} onChange={(e) => updateAlarmDeepDive(alarm.id, 'trend', e.target.value)}><option>Stable</option><option>Rising</option><option>Falling</option><option>Intermittent Spikes</option></select></td><td className="border p-3 space-y-3"><select className="w-full rounded-lg border p-3" disabled={!isEditMode} value={alarm.status} onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}><option>Open</option><option>Acknowledged</option><option>Monitoring</option><option>Resolved</option></select><Input placeholder="Component" disabled={!isEditMode} value={alarm.component} onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)} /><div className="text-xs text-slate-500"><p><Clock className="inline w-3 h-3 mr-1" />Created: {alarm.createdAt}</p>{alarm.acknowledgedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Ack: {alarm.acknowledgedAt}</p>}{alarm.resolvedAt && <p><CheckCircle2 className="inline w-3 h-3 mr-1" />Resolved: {alarm.resolvedAt}</p>}</div></td><td className="border p-3">
+                                  {isEditMode && canEdit && (
+                                    <label className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 print:hidden">
+                                      Upload Sensor Snapshot
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => uploadSensorSnapshot(alarm.id, e)}
+                                      />
+                                    </label>
+                                  )}
+
+                                  <div className="mt-3 grid grid-cols-1 gap-3">
+                                    {(alarm.deepDive.images || []).length > 0 ? (
+                                      (alarm.deepDive.images || []).map((image) => (
+                                        <div key={image.id} className="rounded-lg border bg-white p-2 shadow-sm">
+                                          <a href={image.url} target="_blank" rel="noreferrer">
+                                            <img
+                                              src={image.url}
+                                              alt={image.name}
+                                              className="h-32 w-full rounded-md border object-cover"
+                                            />
+                                          </a>
+                                          <div className="mt-2 flex items-start justify-between gap-2">
+                                            <div>
+                                              <p className="text-[11px] font-semibold text-slate-700 truncate max-w-[180px]">{image.name}</p>
+                                              <p className="text-[10px] text-slate-500">Uploaded: {image.uploadedAt}</p>
+                                            </div>
+                                            {isEditMode && canEdit && (
+                                              <Button
+                                                variant="destructive"
+                                                size="icon"
+                                                className="h-6 w-6 shrink-0 print:hidden"
+                                                onClick={() => removeSensorSnapshot(alarm.id, image.id)}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="rounded-lg border border-dashed bg-slate-50 p-4 text-center text-xs text-slate-500">
+                                        No sensor snapshot uploaded.
+                                      </div>
+                                    )}
+                                  </div>
+                                </td></tr></tbody></table></div></td></tr>
                       )}
                     </React.Fragment>
                   ))}
@@ -584,37 +706,4 @@ export default function ShiftReportDashboard() {
         </Card>
 
         {showLogin && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden">
-            <Card className="w-full max-w-md rounded-2xl shadow-2xl">
-              <CardHeader><CardTitle>Admin Login</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <Input type="email" placeholder="Admin email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
-                <Input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }} />
-                {loginError && <div className="text-sm text-red-600">{loginError}</div>}
-                <div className="flex gap-2"><Button onClick={handleLogin} className="flex-1 bg-slate-950 text-white"><LogIn className="mr-2 h-4 w-4" /> Login</Button><Button variant="outline" className="flex-1" onClick={() => { setShowLogin(false); setLoginError(''); }}>Cancel</Button></div>
-                <div className="rounded-xl bg-slate-50 border p-3 text-xs text-slate-600">Use your Firebase Authentication email and password.</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {showAdminManager && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden">
-            <Card className="w-full max-w-2xl rounded-2xl shadow-2xl">
-              <CardHeader><CardTitle>Manage Admin Access</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2"><Input type="email" placeholder="Enter admin email" value={newAdminEmail} onChange={(e) => setNewAdminEmail(e.target.value)} /><Button onClick={grantAdminAccess} className="bg-purple-700 hover:bg-purple-800 text-white">Grant Access</Button></div>
-                {adminAccessMessage && <div className="text-sm text-slate-700 bg-slate-100 rounded-lg p-3">{adminAccessMessage}</div>}
-                <div className="space-y-2">
-                  {approvedAdmins.map((admin) => <div key={admin.email} className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div><p className="font-medium text-slate-900">{admin.email}</p><p className="text-xs text-slate-500">Role: {admin.role || 'Admin'} · Approved: {admin.approvedAt || 'Existing'}</p></div><div className="flex gap-2"><Button variant="outline" onClick={() => sendPasswordSetupEmail(admin.email)} className="h-8 text-xs px-3">Send Setup Email</Button>{admin.email !== PRIMARY_ADMIN_EMAIL.toLowerCase() && <Button variant="destructive" size="icon" onClick={() => removeAdminAccess(admin.email)}><Trash2 className="w-4 h-4" /></Button>}</div></div>)}
-                  {approvedAdmins.length === 0 && <div className="text-sm text-slate-500 text-center p-6 border rounded-xl">No additional admins approved yet.</div>}
-                </div>
-                <div className="flex justify-end"><Button variant="outline" onClick={() => { setShowAdminManager(false); setAdminAccessMessage(''); }}>Close</Button></div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+          <div className="fix
