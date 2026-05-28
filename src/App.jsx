@@ -340,6 +340,35 @@ export default function ShiftReportDashboard() {
     setTimeout(() => setSnapshotUploadMessage(''), 5000);
   };
 
+  const resolveOneHardwareIssue = (issueType) => {
+    if (!canEdit || !isEditMode) return;
+
+    const matchingAlarm = alarms.find(
+      (alarm) =>
+        alarm.category === 'Hardware Issue' &&
+        alarm.issue === issueType &&
+        alarm.status !== 'Resolved'
+    );
+
+    if (!matchingAlarm) return;
+
+    setAlarms((currentAlarms) =>
+      currentAlarms.map((alarm) =>
+        alarm.id === matchingAlarm.id
+          ? {
+              ...alarm,
+              status: 'Resolved',
+              resolvedAt: new Date().toLocaleString(),
+              showDetails: false,
+            }
+          : alarm
+      )
+    );
+
+    setSaveMessage(`${issueType} count reduced by 1. Click Save Report to save this change.`);
+    setTimeout(() => setSaveMessage(''), 5000);
+  };
+
   const activeAlarmCount = alarms.filter((alarm) => alarm.status !== 'Resolved').length;
   const normalSensorCount = Math.max(DEFAULT_TOTAL_SENSORS - activeAlarmCount, 0);
   const activeAlarmPercent = ((activeAlarmCount / DEFAULT_TOTAL_SENSORS) * 100).toFixed(2);
@@ -414,7 +443,7 @@ export default function ShiftReportDashboard() {
         <DTWTable isEditMode={isEditMode} canEdit={canEdit} newDTW={newDTW} setNewDTW={setNewDTW} addDTWRepair={addDTWRepair} sortedScheduledDTW={sortedScheduledDTW} updateDTWRepair={updateDTWRepair} removeDTWRepair={removeDTWRepair} />
         <ActiveAlarmsTable filteredAlarms={filteredAlarms} countByCategory={countByCategory} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} searchTerm={searchTerm} setSearchTerm={setSearchTerm} isEditMode={isEditMode} canEdit={canEdit} toggleAlarmDetails={toggleAlarmDetails} removeAlarm={removeAlarm} updateAlarmDeepDive={updateAlarmDeepDive} updateAlarmField={updateAlarmField} uploadSensorSnapshot={uploadSensorSnapshot} removeSensorSnapshot={removeSensorSnapshot} />
 
-        <HardwareIssuesTable hardwareIssueCounts={hardwareIssueCounts} totalHardwareIssues={totalHardwareIssues} alarms={alarms} isEditMode={isEditMode} canEdit={canEdit} updateAlarmField={updateAlarmField} />
+        <HardwareIssuesTable hardwareIssueCounts={hardwareIssueCounts} totalHardwareIssues={totalHardwareIssues} alarms={alarms} isEditMode={isEditMode} canEdit={canEdit} updateAlarmField={updateAlarmField} resolveOneHardwareIssue={resolveOneHardwareIssue} />
 
         <LoginModal showLogin={showLogin} loginEmail={loginEmail} setLoginEmail={setLoginEmail} loginPassword={loginPassword} setLoginPassword={setLoginPassword} loginError={loginError} setLoginError={setLoginError} setShowLogin={setShowLogin} handleLogin={handleLogin} />
         <AdminManagerModal showAdminManager={showAdminManager} setShowAdminManager={setShowAdminManager} newAdminEmail={newAdminEmail} setNewAdminEmail={setNewAdminEmail} grantAdminAccess={grantAdminAccess} adminAccessMessage={adminAccessMessage} setAdminAccessMessage={setAdminAccessMessage} approvedAdmins={approvedAdmins} sendPasswordSetupEmail={sendPasswordSetupEmail} removeAdminAccess={removeAdminAccess} />
