@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, LogOut, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
@@ -304,23 +304,62 @@ export function ActiveAlarmsTable({
   );
 }
 
-export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, isEditMode, canEdit, resolveOneHardwareIssue }) {
+export function HardwareIssuesTable({
+  hardwareIssueCounts,
+  totalHardwareIssues,
+  alarms,
+  isEditMode,
+  canEdit,
+  resolveOneHardwareIssue,
+}) {
+  const [openIssueType, setOpenIssueType] = useState(null);
+
+  const getHardwareDetails = (issueType) =>
+    alarms.filter(
+      (alarm) =>
+        alarm.category === 'Hardware Issue' &&
+        alarm.issue === issueType &&
+        alarm.status !== 'Resolved'
+    );
+
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader className="py-3"><CardTitle className="text-lg">Hardware Issues</CardTitle></CardHeader>
+      <CardHeader className="py-3">
+        <CardTitle className="text-lg">Hardware Issues</CardTitle>
+      </CardHeader>
+
       <CardContent>
         <div className="overflow-x-auto rounded-xl border bg-white">
           <table className="w-full min-w-[950px] border-collapse text-sm">
             <thead>
               <tr className="bg-slate-900 text-white">
-                {hardwareIssueTypes.map((issueType) => <th key={issueType} className="px-3 py-2 text-center">{issueType}</th>)}
+                {hardwareIssueTypes.map((issueType) => (
+                  <th key={issueType} className="px-3 py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenIssueType(openIssueType === issueType ? null : issueType)
+                      }
+                      className="w-full rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-700"
+                    >
+                      {issueType}
+                      <span className="ml-1">
+                        {openIssueType === issueType ? '▲' : '▼'}
+                      </span>
+                    </button>
+                  </th>
+                ))}
               </tr>
             </thead>
+
             <tbody>
               <tr className="border-t bg-white">
                 {hardwareIssueTypes.map((issueType) => (
-                  <td key={issueType} className="px-3 py-4 text-center">
-                    <div className="text-2xl font-bold text-slate-800">{hardwareIssueCounts[issueType] || 0}</div>
+                  <td key={issueType} className="px-3 py-4 text-center align-top">
+                    <div className="text-2xl font-bold text-slate-800">
+                      {hardwareIssueCounts[issueType] || 0}
+                    </div>
+
                     {isEditMode && canEdit && (
                       <Button
                         size="sm"
@@ -332,14 +371,43 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
                         Complete 1
                       </Button>
                     )}
+
+                    {openIssueType === issueType && (
+                      <div className="mt-3 rounded-lg border bg-slate-50 p-2 text-left text-xs shadow-sm">
+                        {getHardwareDetails(issueType).length > 0 ? (
+                          getHardwareDetails(issueType).map((alarm) => (
+                            <div
+                              key={alarm.id}
+                              className="mb-2 rounded-md border bg-white p-2 last:mb-0"
+                            >
+                              <p className="font-semibold text-slate-800">
+                                Asset: {alarm.asset || 'N/A'}
+                              </p>
+                              <p className="text-slate-600">
+                                Component: {alarm.component || 'N/A'}
+                              </p>
+                              <p className="text-slate-500">
+                                Added: {alarm.createdAt || 'N/A'}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-center text-slate-500">
+                            No active items.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </td>
                 ))}
               </tr>
             </tbody>
           </table>
         </div>
+
         <p className="mt-2 text-xs text-slate-500">
-          Total active hardware issues: {totalHardwareIssues}. Use Complete 1 to reduce a category count after that hardware issue is completed, then click Save Report.
+          Total active hardware issues: {totalHardwareIssues}. Click a header to view
+          asset/component details. Use Complete 1 to reduce a count, then click Save Report.
         </p>
       </CardContent>
     </Card>
