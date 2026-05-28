@@ -411,9 +411,10 @@ export default function ShiftReportDashboard() {
         </div>
 
         <SensorHealthCard sensorHealthData={sensorHealthData} activeAlarmCount={activeAlarmCount} normalSensorCount={normalSensorCount} activeAlarmPercent={activeAlarmPercent} normalSensorPercent={normalSensorPercent} />
-        <HardwareIssuesTable hardwareIssueCounts={hardwareIssueCounts} totalHardwareIssues={totalHardwareIssues} />
         <DTWTable isEditMode={isEditMode} canEdit={canEdit} newDTW={newDTW} setNewDTW={setNewDTW} addDTWRepair={addDTWRepair} sortedScheduledDTW={sortedScheduledDTW} updateDTWRepair={updateDTWRepair} removeDTWRepair={removeDTWRepair} />
         <ActiveAlarmsTable filteredAlarms={filteredAlarms} countByCategory={countByCategory} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} searchTerm={searchTerm} setSearchTerm={setSearchTerm} isEditMode={isEditMode} canEdit={canEdit} toggleAlarmDetails={toggleAlarmDetails} removeAlarm={removeAlarm} updateAlarmDeepDive={updateAlarmDeepDive} updateAlarmField={updateAlarmField} uploadSensorSnapshot={uploadSensorSnapshot} removeSensorSnapshot={removeSensorSnapshot} />
+
+        <HardwareIssuesTable hardwareIssueCounts={hardwareIssueCounts} totalHardwareIssues={totalHardwareIssues} alarms={alarms} isEditMode={isEditMode} canEdit={canEdit} updateAlarmField={updateAlarmField} />
 
         <LoginModal showLogin={showLogin} loginEmail={loginEmail} setLoginEmail={setLoginEmail} loginPassword={loginPassword} setLoginPassword={setLoginPassword} loginError={loginError} setLoginError={setLoginError} setShowLogin={setShowLogin} handleLogin={handleLogin} />
         <AdminManagerModal showAdminManager={showAdminManager} setShowAdminManager={setShowAdminManager} newAdminEmail={newAdminEmail} setNewAdminEmail={setNewAdminEmail} grantAdminAccess={grantAdminAccess} adminAccessMessage={adminAccessMessage} setAdminAccessMessage={setAdminAccessMessage} approvedAdmins={approvedAdmins} sendPasswordSetupEmail={sendPasswordSetupEmail} removeAdminAccess={removeAdminAccess} />
