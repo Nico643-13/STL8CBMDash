@@ -214,6 +214,7 @@ export function ActiveAlarmsTable({
   updateAlarmField,
   uploadSensorSnapshot,
   removeSensorSnapshot,
+  addAlarmToDTW,
 }) {
   return (
     <Card className="rounded-2xl shadow-lg">
@@ -240,8 +241,24 @@ export function ActiveAlarmsTable({
         </div>
 
         <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="w-full min-w-[1100px] border-collapse text-xs">
-            <thead><tr className="bg-slate-900 text-white uppercase"><th className="px-3 py-2 text-left">Severity</th><th className="px-3 py-2 text-left">Asset</th><th className="px-3 py-2 text-left">Issue</th><th className="px-3 py-2 text-left">Component</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">Created</th><th className="px-3 py-2 text-center">Details</th>{isEditMode && canEdit && <th className="px-3 py-2 text-center">Remove</th>}</tr></thead>
+          <table className="w-full min-w-[1200px] border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-900 text-white uppercase">
+                <th className="px-3 py-2 text-left">Severity</th>
+                <th className="px-3 py-2 text-left">Asset</th>
+                <th className="px-3 py-2 text-left">Issue</th>
+                <th className="px-3 py-2 text-left">Component</th>
+                <th className="px-3 py-2 text-left">Status</th>
+                <th className="px-3 py-2 text-left">Created</th>
+                <th className="px-3 py-2 text-center">Details</th>
+                {isEditMode && canEdit && (
+                  <>
+                    <th className="px-3 py-2 text-center">Remove</th>
+                    <th className="px-3 py-2 text-center">Add to DTW</th>
+                  </>
+                )}
+              </tr>
+            </thead>
             <tbody>
               {filteredAlarms.map((alarm) => (
                 <React.Fragment key={alarm.id}>
@@ -253,12 +270,17 @@ export function ActiveAlarmsTable({
                     <td className="px-3 py-2"><Badge className="bg-slate-700 text-white text-[10px]">{alarm.status}</Badge></td>
                     <td className="px-3 py-2 text-[11px] text-slate-500">{alarm.createdAt}</td>
                     <td className="px-3 py-2 text-center"><Button variant="outline" onClick={() => toggleAlarmDetails(alarm.id)} className="h-7 text-[11px] px-2">{alarm.showDetails ? <><ChevronUp className="mr-2 w-4 h-4" /> Hide</> : <><ChevronDown className="mr-2 w-4 h-4" /> View</>}</Button></td>
-                    {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>}
+                    {isEditMode && canEdit && (
+                      <>
+                        <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>
+                        <td className="px-3 py-2 text-center"><Button variant="outline" className="h-7 text-[11px] px-2" onClick={() => addAlarmToDTW(alarm)}>Add</Button></td>
+                      </>
+                    )}
                   </tr>
 
                   {alarm.showDetails && (
                     <tr className="bg-slate-50 border-t">
-                      <td colSpan={isEditMode && canEdit ? 8 : 7} className="p-3">
+                      <td colSpan={isEditMode && canEdit ? 9 : 7} className="p-3">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <Input placeholder="Area / Location" disabled={!isEditMode} value={alarm.deepDive.location} onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)} />
                           <Textarea placeholder="Thermal findings / notes" disabled={!isEditMode} value={alarm.deepDive.thermographicNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)} />
@@ -304,14 +326,7 @@ export function ActiveAlarmsTable({
   );
 }
 
-export function HardwareIssuesTable({
-  hardwareIssueCounts,
-  totalHardwareIssues,
-  alarms,
-  isEditMode,
-  canEdit,
-  resolveOneHardwareIssue,
-}) {
+export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, alarms, isEditMode, canEdit, resolveOneHardwareIssue }) {
   const [openIssueType, setOpenIssueType] = useState(null);
 
   const getHardwareDetails = (issueType) =>
@@ -324,10 +339,7 @@ export function HardwareIssuesTable({
 
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader className="py-3">
-        <CardTitle className="text-lg">Hardware Issues</CardTitle>
-      </CardHeader>
-
+      <CardHeader className="py-3"><CardTitle className="text-lg">Hardware Issues</CardTitle></CardHeader>
       <CardContent>
         <div className="overflow-x-auto rounded-xl border bg-white">
           <table className="w-full min-w-[950px] border-collapse text-sm">
@@ -335,39 +347,20 @@ export function HardwareIssuesTable({
               <tr className="bg-slate-900 text-white">
                 {hardwareIssueTypes.map((issueType) => (
                   <th key={issueType} className="px-3 py-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenIssueType(openIssueType === issueType ? null : issueType)
-                      }
-                      className="w-full rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-700"
-                    >
-                      {issueType}
-                      <span className="ml-1">
-                        {openIssueType === issueType ? '▲' : '▼'}
-                      </span>
+                    <button type="button" onClick={() => setOpenIssueType(openIssueType === issueType ? null : issueType)} className="w-full rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-700">
+                      {issueType} <span className="ml-1">{openIssueType === issueType ? '▲' : '▼'}</span>
                     </button>
                   </th>
                 ))}
               </tr>
             </thead>
-
             <tbody>
               <tr className="border-t bg-white">
                 {hardwareIssueTypes.map((issueType) => (
                   <td key={issueType} className="px-3 py-4 text-center align-top">
-                    <div className="text-2xl font-bold text-slate-800">
-                      {hardwareIssueCounts[issueType] || 0}
-                    </div>
-
+                    <div className="text-2xl font-bold text-slate-800">{hardwareIssueCounts[issueType] || 0}</div>
                     {isEditMode && canEdit && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!hardwareIssueCounts[issueType]}
-                        onClick={() => resolveOneHardwareIssue(issueType)}
-                        className="mt-2 text-xs"
-                      >
+                      <Button size="sm" variant="outline" disabled={!hardwareIssueCounts[issueType]} onClick={() => resolveOneHardwareIssue(issueType)} className="mt-2 text-xs">
                         Complete 1
                       </Button>
                     )}
@@ -376,25 +369,14 @@ export function HardwareIssuesTable({
                       <div className="mt-3 rounded-lg border bg-slate-50 p-2 text-left text-xs shadow-sm">
                         {getHardwareDetails(issueType).length > 0 ? (
                           getHardwareDetails(issueType).map((alarm) => (
-                            <div
-                              key={alarm.id}
-                              className="mb-2 rounded-md border bg-white p-2 last:mb-0"
-                            >
-                              <p className="font-semibold text-slate-800">
-                                Asset: {alarm.asset || 'N/A'}
-                              </p>
-                              <p className="text-slate-600">
-                                Component: {alarm.component || 'N/A'}
-                              </p>
-                              <p className="text-slate-500">
-                                Added: {alarm.createdAt || 'N/A'}
-                              </p>
+                            <div key={alarm.id} className="mb-2 rounded-md border bg-white p-2 last:mb-0">
+                              <p className="font-semibold text-slate-800">Asset: {alarm.asset || 'N/A'}</p>
+                              <p className="text-slate-600">Component: {alarm.component || 'N/A'}</p>
+                              <p className="text-slate-500">Added: {alarm.createdAt || 'N/A'}</p>
                             </div>
                           ))
                         ) : (
-                          <p className="text-center text-slate-500">
-                            No active items.
-                          </p>
+                          <p className="text-center text-slate-500">No active items.</p>
                         )}
                       </div>
                     )}
@@ -404,10 +386,8 @@ export function HardwareIssuesTable({
             </tbody>
           </table>
         </div>
-
         <p className="mt-2 text-xs text-slate-500">
-          Total active hardware issues: {totalHardwareIssues}. Click a header to view
-          asset/component details. Use Complete 1 to reduce a count, then click Save Report.
+          Total active hardware issues: {totalHardwareIssues}. Click a header to view asset/component details. Use Complete 1 to reduce a count, then click Save Report.
         </p>
       </CardContent>
     </Card>
