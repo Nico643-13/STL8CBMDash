@@ -3,7 +3,7 @@ import { LogIn, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PRIMARY_ADMIN_EMAIL } from '../constants';
+import { PRIMARY_ADMIN_EMAIL } from '../../constants'
 
 export function LoginModal({ showLogin, loginEmail, setLoginEmail, loginPassword, setLoginPassword, loginError, setLoginError, setShowLogin, handleLogin }) {
   if (!showLogin) return null;
