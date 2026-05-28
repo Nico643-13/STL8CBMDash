@@ -256,6 +256,41 @@ export default function ShiftReportDashboard() {
     setNewDTW({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
   };
 
+  const addAlarmToDTW = (alarm) => {
+    if (!canEdit || !isEditMode) return;
+
+    const alreadyScheduled = scheduledDTW.some(
+      (repair) =>
+        repair.sourceAlarmId === alarm.id ||
+        (repair.asset === alarm.asset &&
+          repair.component === alarm.component &&
+          repair.issue === alarm.issue)
+    );
+
+    if (alreadyScheduled) {
+      setSaveMessage('This alarm is already listed in Next Day Scheduled DTW.');
+      setTimeout(() => setSaveMessage(''), 5000);
+      return;
+    }
+
+    setScheduledDTW([
+      ...scheduledDTW,
+      {
+        id: Date.now(),
+        sourceAlarmId: alarm.id,
+        category: alarm.category,
+        asset: alarm.asset,
+        component: alarm.component || '',
+        issue: alarm.issue,
+        customIssue: '',
+        repairNotes: `Added from Active Alarm created ${alarm.createdAt || ''}`.trim(),
+      },
+    ]);
+
+    setSaveMessage('Active Alarm added to Next Day Scheduled DTW. Click Save Report to save this change.');
+    setTimeout(() => setSaveMessage(''), 5000);
+  }; 
+
   const updateDTWRepair = (id, field, value) => {
     setScheduledDTW(scheduledDTW.map((repair) => (repair.id === id ? { ...repair, [field]: value } : repair)));
   };
@@ -441,7 +476,7 @@ export default function ShiftReportDashboard() {
 
         <SensorHealthCard sensorHealthData={sensorHealthData} activeAlarmCount={activeAlarmCount} normalSensorCount={normalSensorCount} activeAlarmPercent={activeAlarmPercent} normalSensorPercent={normalSensorPercent} />
         <DTWTable isEditMode={isEditMode} canEdit={canEdit} newDTW={newDTW} setNewDTW={setNewDTW} addDTWRepair={addDTWRepair} sortedScheduledDTW={sortedScheduledDTW} updateDTWRepair={updateDTWRepair} removeDTWRepair={removeDTWRepair} />
-        <ActiveAlarmsTable filteredAlarms={filteredAlarms} countByCategory={countByCategory} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} searchTerm={searchTerm} setSearchTerm={setSearchTerm} isEditMode={isEditMode} canEdit={canEdit} toggleAlarmDetails={toggleAlarmDetails} removeAlarm={removeAlarm} updateAlarmDeepDive={updateAlarmDeepDive} updateAlarmField={updateAlarmField} uploadSensorSnapshot={uploadSensorSnapshot} removeSensorSnapshot={removeSensorSnapshot} />
+        <ActiveAlarmsTable filteredAlarms={filteredAlarms} countByCategory={countByCategory} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} searchTerm={searchTerm} setSearchTerm={setSearchTerm} isEditMode={isEditMode} canEdit={canEdit} toggleAlarmDetails={toggleAlarmDetails} removeAlarm={removeAlarm} updateAlarmDeepDive={updateAlarmDeepDive} updateAlarmField={updateAlarmField} uploadSensorSnapshot={uploadSensorSnapshot} removeSensorSnapshot={removeSensorSnapshot} addAlarmToDTW={addAlarmToDTW} />
 
         <HardwareIssuesTable hardwareIssueCounts={hardwareIssueCounts} totalHardwareIssues={totalHardwareIssues} alarms={alarms} isEditMode={isEditMode} canEdit={canEdit} updateAlarmField={updateAlarmField} resolveOneHardwareIssue={resolveOneHardwareIssue} />
 
