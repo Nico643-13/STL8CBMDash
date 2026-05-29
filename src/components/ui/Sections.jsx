@@ -216,7 +216,7 @@ export function DTWTable({ isEditMode, canEdit, newDTW, setNewDTW, addDTWRepair,
                     {isEditMode && canEdit ? (
                       <Input value={repair.workOrder || ''} onChange={(e) => updateDTWRepair(repair.id, 'workOrder', e.target.value)} />
                     ) : repair.workOrder ? (
-                      <a href={buildWorkOrderUrl(repair.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">WO Link</a>
+                      <a href={buildWorkOrderUrl(repair.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">{repair.workOrder}</a>
                     ) : (
                       '-'
                     )}
@@ -304,7 +304,7 @@ export function ActiveAlarmsTable({
                     <td className="px-3 py-2">{alarm.component || '-'}</td>
                     <td className="px-3 py-2">
                       {alarm.workOrder ? (
-                        <a href={buildWorkOrderUrl(alarm.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">WO Link</a>
+                        <a href={buildWorkOrderUrl(alarm.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">{alarm.workOrder}</a>
                       ) : (
                         '-'
                       )}
@@ -430,7 +430,7 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
                                 <p className="text-slate-500">Added: {alarm.createdAt || 'N/A'}</p>
                                 {alarm.workOrder && (
                                   <a href={buildWorkOrderUrl(alarm.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                                    WO Link
+                                    {alarm.workOrder}
                                   </a>
                                 )}
                               </div>
