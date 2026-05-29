@@ -125,7 +125,7 @@ export function AddAlarmCard({ canEdit, isEditMode, newAlarm, setNewAlarm, addAl
 
         <Input placeholder="Asset / Conveyor ID" value={newAlarm.asset} disabled={!isEditMode} onChange={(e) => setNewAlarm({ ...newAlarm, asset: e.target.value })} />
         <Input placeholder="Component" value={newAlarm.component} disabled={!isEditMode} onChange={(e) => setNewAlarm({ ...newAlarm, component: e.target.value })} />
-        <Input placeholder="WO# Link" value={newAlarm.workOrder || ''} disabled={!isEditMode} onChange={(e) => setNewAlarm({ ...newAlarm, workOrder: e.target.value })} />
+        <Input placeholder="WO#" value={newAlarm.workOrder || ''} disabled={!isEditMode} onChange={(e) => setNewAlarm({ ...newAlarm, workOrder: e.target.value })} />
 
         <select className="w-full border rounded-lg p-2" value={newAlarm.issue} disabled={!isEditMode} onChange={(e) => setNewAlarm({ ...newAlarm, issue: e.target.value })}>
           <option value="">Select Issue Description</option>
@@ -181,7 +181,7 @@ export function DTWTable({ isEditMode, canEdit, newDTW, setNewDTW, addDTWRepair,
             <select className="rounded-lg border p-2 text-sm" value={newDTW.category} onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}>{categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}</select>
             <Input placeholder="Asset" value={newDTW.asset} onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })} />
             <Input placeholder="Component" value={newDTW.component} onChange={(e) => setNewDTW({ ...newDTW, component: e.target.value })} />
-            <Input placeholder="WO# Link" value={newDTW.workOrder || ''} onChange={(e) => setNewDTW({ ...newDTW, workOrder: e.target.value })} />
+            <Input placeholder="WO#" value={newDTW.workOrder || ''} onChange={(e) => setNewDTW({ ...newDTW, workOrder: e.target.value })} />
             <select className="rounded-lg border p-2 text-sm" value={newDTW.issue} onChange={(e) => setNewDTW({ ...newDTW, issue: e.target.value })}>
               <option value="">Select Issue</option>
               {issueOptions.map((issue) => <option key={issue} value={issue}>{issue}</option>)}
