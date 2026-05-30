@@ -17,6 +17,13 @@ import {
 } from '../../constants';
 
 const buildWorkOrderUrl = (value) => {
+  const openWaitesWireless = () => {
+  window.open(
+    'https://amazon.waites.net/#STL8',
+    '_blank',
+    'noopener,noreferrer'
+  );
+};
   if (!value) return '';
 
   const cleaned = String(value)
@@ -252,7 +259,18 @@ export function ActiveAlarmsTable({
 }) {
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader><CardTitle>Active Alarms</CardTitle></CardHeader>
+<CardHeader className="flex flex-row items-center justify-between">
+  <CardTitle>Active Alarms</CardTitle>
+
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={openWaitesWireless}
+    className="bg-blue-50 border-blue-300 text-blue-700"
+  >
+    Open In Waites Wireless
+  </Button>
+</CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
           {activeAlarmCategories.map((cat) => (
@@ -390,7 +408,20 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
 
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader className="py-3"><CardTitle className="text-lg">Hardware Issues</CardTitle></CardHeader>
+<CardHeader className="py-3 flex flex-row items-center justify-between">
+  <CardTitle className="text-lg">
+    Hardware Issues
+  </CardTitle>
+
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={openWaitesWireless}
+    className="bg-blue-50 border-blue-300 text-blue-700"
+  >
+    Open In Waites Wireless
+  </Button>
+</CardHeader>
       <CardContent>
         <div className="overflow-x-auto rounded-xl border bg-white">
           <table className="w-full min-w-[950px] border-collapse text-sm">
