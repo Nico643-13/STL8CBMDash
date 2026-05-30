@@ -51,6 +51,7 @@ export function Header({
   lastSaved,
   themePreference,
   setThemePreference,
+  saveThemePreference,
 }) {
   return (
     <Card className="rounded-2xl shadow-lg overflow-hidden">
@@ -85,6 +86,11 @@ export function Header({
               <option value="light">Light</option>
               <option value="dark">Dark</option>
             </select>
+            <Button
+              onClick={saveThemePreference}
+              className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3"
+            >
+              Save Theme
             <Button
               onClick={() => (canEdit ? setIsEditMode(!isEditMode) : setShowLogin(true))}
               className={`${isEditMode ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-800'} text-white h-8 text-xs px-3`}
