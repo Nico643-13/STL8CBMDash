@@ -57,19 +57,8 @@ export default function ShiftReportDashboard() {
   const canEdit = currentUser.role === USER_ROLES.ADMIN || isPrimaryAdmin;
 
   useEffect(() => {
-    const applyTheme = () => {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const resolvedTheme = themePreference === 'system' ? (prefersDark ? 'dark' : 'light') : themePreference;
-      document.documentElement.dataset.cbmTheme = resolvedTheme;
-      localStorage.setItem('cbm-theme-preference', themePreference);
-    };
-
-    applyTheme();
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', applyTheme);
-
-    return () => mediaQuery.removeEventListener('change', applyTheme);
+    document.documentElement.dataset.cbmTheme = themePreference;
+    localStorage.setItem('cbm-theme-preference', themePreference);
   }, [themePreference]);
 
   useEffect(() => {
@@ -485,7 +474,20 @@ export default function ShiftReportDashboard() {
         html[data-cbm-theme='dark'] textarea,
         html[data-cbm-theme='dark'] select { background-color: #020617 !important; color: #e5e7eb !important; border-color: #475569 !important; }
         html[data-cbm-theme='dark'] table tr:hover { background-color: #1e293b !important; }
-        html[data-cbm-theme='light'] body { background: #f1f5f9; }
+
+        /* SYSTEM MODE: original STL8 default lighter appearance */
+        html[data-cbm-theme='system'] body { background: #f1f5f9; }
+        html[data-cbm-theme='system'] .cbm-theme-root { background: #f1f5f9 !important; }
+
+        /* LIGHT MODE: slightly brighter than system/default */
+        html[data-cbm-theme='light'] body { background: #ffffff; }
+        html[data-cbm-theme='light'] .cbm-theme-root { background: #ffffff !important; }
+        html[data-cbm-theme='light'] .bg-white { background-color: #ffffff !important; }
+        html[data-cbm-theme='light'] .bg-slate-50 { background-color: #fafafa !important; }
+        html[data-cbm-theme='light'] .bg-slate-100 { background-color: #ffffff !important; }
+        html[data-cbm-theme='light'] .rounded-2xl,
+        html[data-cbm-theme='light'] .rounded-xl,
+        html[data-cbm-theme='light'] .rounded-lg { border-color: #e5e7eb; }
       `}</style>
       <div className="max-w-7xl mx-auto space-y-6">
         <Header
