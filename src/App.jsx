@@ -475,9 +475,35 @@ export default function ShiftReportDashboard() {
         html[data-cbm-theme='dark'] select { background-color: #020617 !important; color: #e5e7eb !important; border-color: #475569 !important; }
         html[data-cbm-theme='dark'] table tr:hover { background-color: #1e293b !important; }
 
+        /* DARK MODE READABILITY */
+        html[data-cbm-theme='dark'] h1,
+        html[data-cbm-theme='dark'] h2,
+        html[data-cbm-theme='dark'] h3,
+        html[data-cbm-theme='dark'] h4,
+        html[data-cbm-theme='dark'] h5,
+        html[data-cbm-theme='dark'] h6,
+        html[data-cbm-theme='dark'] [class*='CardTitle'],
+        html[data-cbm-theme='dark'] .text-lg,
+        html[data-cbm-theme='dark'] .text-xl,
+        html[data-cbm-theme='dark'] .text-2xl {
+          color: #f8fafc !important;
+        }
+
         /* SYSTEM MODE: original STL8 default lighter appearance */
         html[data-cbm-theme='system'] body { background: #f1f5f9; }
         html[data-cbm-theme='system'] .cbm-theme-root { background: #f1f5f9 !important; }
+        html[data-cbm-theme='system'] h1,
+        html[data-cbm-theme='system'] h2,
+        html[data-cbm-theme='system'] h3,
+        html[data-cbm-theme='system'] h4,
+        html[data-cbm-theme='system'] h5,
+        html[data-cbm-theme='system'] h6,
+        html[data-cbm-theme='system'] [class*='CardTitle'],
+        html[data-cbm-theme='system'] .text-lg,
+        html[data-cbm-theme='system'] .text-xl,
+        html[data-cbm-theme='system'] .text-2xl {
+          color: #0f172a !important;
+        }
 
         /* LIGHT MODE: slightly brighter than system/default */
         html[data-cbm-theme='light'] body { background: #ffffff; }
@@ -488,6 +514,18 @@ export default function ShiftReportDashboard() {
         html[data-cbm-theme='light'] .rounded-2xl,
         html[data-cbm-theme='light'] .rounded-xl,
         html[data-cbm-theme='light'] .rounded-lg { border-color: #e5e7eb; }
+        html[data-cbm-theme='light'] h1,
+        html[data-cbm-theme='light'] h2,
+        html[data-cbm-theme='light'] h3,
+        html[data-cbm-theme='light'] h4,
+        html[data-cbm-theme='light'] h5,
+        html[data-cbm-theme='light'] h6,
+        html[data-cbm-theme='light'] [class*='CardTitle'],
+        html[data-cbm-theme='light'] .text-lg,
+        html[data-cbm-theme='light'] .text-xl,
+        html[data-cbm-theme='light'] .text-2xl {
+          color: #111827 !important;
+        }
       `}</style>
       <div className="max-w-7xl mx-auto space-y-6">
         <Header
