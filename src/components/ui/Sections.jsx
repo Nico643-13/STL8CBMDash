@@ -501,6 +501,22 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
   const [openIssueType, setOpenIssueType] = useState(null);
   const [selectedHardwareIds, setSelectedHardwareIds] = useState([]);
 
+  const getHardwareStatusOptions = (issueType) => {
+    if (issueType === 'Replace Sensor') {
+      return ['Open', 'On Hold - Awaiting Sensors', 'On Hold - Awaiting DTW/Break'];
+    }
+
+    if (issueType === 'Replace Node') {
+      return ['Open', 'On Hold - Awaiting Nodes', 'On Hold - Awaiting DTW/Break'];
+    }
+
+    if (issueType === 'Replace Batteries') {
+      return ['Open', 'On Hold - Awaiting Batteries', 'On Hold - Awaiting DTW/Break'];
+    }
+
+    return ['Open', 'On Hold - Awaiting DTW/Break'];
+  };
+
   const getHardwareDetails = (issueType) =>
     alarms.filter((alarm) => alarm.category === 'Hardware Issue' && alarm.issue === issueType && alarm.status !== 'Resolved');
 
@@ -519,20 +535,19 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
 
   return (
     <Card className="rounded-2xl shadow-lg">
-<CardHeader className="py-3 flex flex-row items-center justify-between">
-  <CardTitle className="text-lg">
-    Hardware Issues
-  </CardTitle>
+      <CardHeader className="py-3 flex flex-row items-center justify-between">
+        <CardTitle className="text-lg">Hardware Issues</CardTitle>
 
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={openWaitesWireless}
-    className="bg-blue-50 border-blue-300 text-blue-700"
-  >
-    Open In Waites Wireless
-  </Button>
-</CardHeader>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openWaitesWireless}
+          className="bg-blue-50 border-blue-300 text-blue-700"
+        >
+          Open In Waites Wireless
+        </Button>
+      </CardHeader>
+
       <CardContent>
         <div className="overflow-x-auto rounded-xl border bg-white">
           <table className="w-full min-w-[950px] border-collapse text-sm">
@@ -540,13 +555,18 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
               <tr className="bg-slate-900 text-white">
                 {hardwareIssueTypes.map((issueType) => (
                   <th key={issueType} className="px-3 py-2 text-center">
-                    <button type="button" onClick={() => setOpenIssueType(openIssueType === issueType ? null : issueType)} className="w-full rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setOpenIssueType(openIssueType === issueType ? null : issueType)}
+                      className="w-full rounded-md px-2 py-1 text-xs font-semibold hover:bg-slate-700"
+                    >
                       {issueType} <span className="ml-1">{openIssueType === issueType ? '▲' : '▼'}</span>
                     </button>
                   </th>
                 ))}
               </tr>
             </thead>
+
             <tbody>
               <tr className="border-t bg-white">
                 {hardwareIssueTypes.map((issueType) => (
@@ -557,26 +577,54 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
                       <div className="mt-3 rounded-lg border bg-slate-50 p-2 text-left text-xs shadow-sm">
                         {getHardwareDetails(issueType).length > 0 ? (
                           getHardwareDetails(issueType).map((alarm) => (
-                            <label key={alarm.id} className="mb-2 flex cursor-pointer gap-2 rounded-md border bg-white p-2 last:mb-0">
-                              {isEditMode && canEdit && (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedHardwareIds.includes(alarm.id)}
-                                  onChange={() => toggleSelectedHardware(alarm.id)}
-                                  className="mt-1"
-                                />
-                              )}
-                              <div>
-                                <p className="font-semibold text-slate-800">Asset: {alarm.asset || 'N/A'}</p>
-                                <p className="text-slate-600">Component: {alarm.component || 'N/A'}</p>
-                                <p className="text-slate-500">Added: {alarm.createdAt || 'N/A'}</p>
-                                {alarm.workOrder && (
-                                  <a href={buildWorkOrderUrl(alarm.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                                    {alarm.workOrder}
-                                  </a>
+                            <div key={alarm.id} className="mb-2 rounded-md border bg-white p-2 last:mb-0">
+                              <label className="flex cursor-pointer gap-2">
+                                {isEditMode && canEdit && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedHardwareIds.includes(alarm.id)}
+                                    onChange={() => toggleSelectedHardware(alarm.id)}
+                                    className="mt-1"
+                                  />
                                 )}
+
+                                <div>
+                                  <p className="font-semibold text-slate-800">Asset: {alarm.asset || 'N/A'}</p>
+                                  <p className="text-slate-600">Component: {alarm.component || 'N/A'}</p>
+                                  <p className="text-slate-500">Added: {alarm.createdAt || 'N/A'}</p>
+
+                                  {alarm.workOrder && (
+                                    <a
+                                      href={buildWorkOrderUrl(alarm.workOrder)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-blue-600 underline"
+                                    >
+                                      {alarm.workOrder}
+                                    </a>
+                                  )}
+                                </div>
+                              </label>
+
+                              <div className="mt-2">
+                                <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                                  Status
+                                </label>
+
+                                <select
+                                  className="w-full rounded-md border p-2 text-xs"
+                                  disabled={!isEditMode || !canEdit}
+                                  value={alarm.status || 'Open'}
+                                  onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}
+                                >
+                                  {getHardwareStatusOptions(issueType).map((statusOption) => (
+                                    <option key={statusOption} value={statusOption}>
+                                      {statusOption}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-                            </label>
+                            </div>
                           ))
                         ) : (
                           <p className="text-center text-slate-500">No active items.</p>
@@ -591,13 +639,18 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
         </div>
 
         {isEditMode && canEdit && (
-          <Button variant="destructive" disabled={selectedHardwareIds.length === 0} onClick={removeSelectedHardwareIssues} className="mt-3">
+          <Button
+            variant="destructive"
+            disabled={selectedHardwareIds.length === 0}
+            onClick={removeSelectedHardwareIssues}
+            className="mt-3"
+          >
             Remove Selected Hardware Issues
           </Button>
         )}
 
         <p className="mt-2 text-xs text-slate-500">
-          Total active hardware issues: {totalHardwareIssues}. Click a header, select completed hardware items, then click Remove Selected Hardware Issues. Click Save Report afterward.
+          Total active hardware issues: {totalHardwareIssues}. Click a header to view hardware items, update status, or select completed items to remove. Click Save Report afterward.
         </p>
       </CardContent>
     </Card>
