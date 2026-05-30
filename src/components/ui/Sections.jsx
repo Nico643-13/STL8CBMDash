@@ -17,13 +17,6 @@ import {
 } from '../../constants';
 
 const buildWorkOrderUrl = (value) => {
-  const openWaitesWireless = () => {
-  window.open(
-    'https://amazon.waites.net/#STL8',
-    '_blank',
-    'noopener,noreferrer'
-  );
-};
   if (!value) return '';
 
   const cleaned = String(value)
@@ -34,6 +27,14 @@ const buildWorkOrderUrl = (value) => {
   if (!cleaned) return '';
 
   return `https://us1.eam.hxgnsmartcloud.com/web/base/logindisp?tenant=AMAZONRMENA_PRD&FROMEMAIL=YES&SYSTEM_FUNCTION_NAME=WSJOBS&USER_FUNCTION_NAME=WSJOBS&workordernum=${encodeURIComponent(cleaned)}`;
+};
+
+const openWaitesWireless = () => {
+  window.open(
+    'https://amazon.waites.net/#STL8',
+    '_blank',
+    'noopener,noreferrer'
+  );
 };
 
 export function Header({
