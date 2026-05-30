@@ -49,6 +49,8 @@ export function Header({
   saveDashboard,
   exportToPDF,
   lastSaved,
+  themePreference,
+  setThemePreference,
 }) {
   return (
     <Card className="rounded-2xl shadow-lg overflow-hidden">
@@ -74,6 +76,15 @@ export function Header({
           </div>
 
           <div className="flex flex-wrap gap-1.5 print:hidden">
+            <select
+              value={themePreference}
+              onChange={(e) => setThemePreference(e.target.value)}
+              className="h-8 rounded-md border border-slate-600 bg-slate-900 px-2 text-xs text-white"
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
             <Button
               onClick={() => (canEdit ? setIsEditMode(!isEditMode) : setShowLogin(true))}
               className={`${isEditMode ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-800'} text-white h-8 text-xs px-3`}
