@@ -428,7 +428,7 @@ export function ActiveAlarmsTable({
                           >
                             <option>Open</option>
                             <option>Monitoring</option>
-                            <option>On Hold - Waiting on Parts</option>
+                            <option>On Hold - Awaiting Parts</option>
                           </select>
 
                           <Textarea
