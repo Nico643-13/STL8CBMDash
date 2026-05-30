@@ -123,7 +123,7 @@ export function Header({
 export function ShiftInfoCard({ reportInfo, setReportInfo, isEditMode }) {
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader><CardTitle>Shift Information</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-slate-900 dark:text-slate-100">Shift Information</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <Input type="date" value={reportInfo.date} disabled={!isEditMode} onChange={(e) => setReportInfo({ ...reportInfo, date: e.target.value })} />
         <Textarea placeholder="Shift Summary / Notes" value={reportInfo.summary} disabled={!isEditMode} onChange={(e) => setReportInfo({ ...reportInfo, summary: e.target.value })} className="min-h-[140px]" />
@@ -137,7 +137,7 @@ export function AddAlarmCard({ canEdit, isEditMode, newAlarm, setNewAlarm, addAl
 
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader><CardTitle>Add Active Alarm</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-slate-900 dark:text-slate-100">Add Active Alarm</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {alarmEntryMessage && <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">{alarmEntryMessage}</div>}
         {!isEditMode && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">Edit Mode is currently off.</div>}
@@ -166,7 +166,7 @@ export function AddAlarmCard({ canEdit, isEditMode, newAlarm, setNewAlarm, addAl
 export function SensorHealthCard({ sensorHealthData, activeAlarmCount, normalSensorCount, activeAlarmPercent, normalSensorPercent }) {
   return (
     <Card className="rounded-2xl shadow-md">
-      <CardHeader className="py-3"><CardTitle className="text-lg">Sensor Health Overview</CardTitle></CardHeader>
+      <CardHeader className="py-3"><CardTitle className="text-slate-900 dark:text-slate-100">Sensor Health Overview</CardTitle></CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
           <div className="lg:col-span-2 flex justify-center overflow-x-auto">
@@ -193,7 +193,7 @@ export function SensorHealthCard({ sensorHealthData, activeAlarmCount, normalSen
 export function DTWTable({ isEditMode, canEdit, newDTW, setNewDTW, addDTWRepair, sortedScheduledDTW, updateDTWRepair, removeDTWRepair }) {
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader className="py-3"><CardTitle className="text-lg">Next Day Scheduled DTW</CardTitle></CardHeader>
+      <CardHeader className="py-3"><CardTitle className="text-slate-900 dark:text-slate-100">Next Day Scheduled DTW</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {isEditMode && canEdit && (
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2 rounded-xl border bg-slate-50 p-3">
@@ -272,7 +272,7 @@ export function ActiveAlarmsTable({
   return (
     <Card className="rounded-2xl shadow-lg">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Active Alarms</CardTitle>
+        <CardTitle className="text-slate-900 dark:text-slate-100">Active Alarms</CardTitle>
 
         <Button
           variant="outline"
@@ -547,7 +547,7 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
   return (
     <Card className="rounded-2xl shadow-lg">
       <CardHeader className="py-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Hardware Issues</CardTitle>
+        <CardTitle className="text-slate-900 dark:text-slate-100">Hardware Issues</CardTitle>
 
         <Button
           variant="outline"
