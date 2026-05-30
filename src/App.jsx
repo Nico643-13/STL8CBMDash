@@ -58,8 +58,13 @@ export default function ShiftReportDashboard() {
 
   useEffect(() => {
     document.documentElement.dataset.cbmTheme = themePreference;
-    localStorage.setItem('cbm-theme-preference', themePreference);
   }, [themePreference]);
+
+  const saveThemePreference = () => {
+    localStorage.setItem('cbm-theme-preference', themePreference);
+    setSaveMessage('Theme preference saved for this browser.');
+    setTimeout(() => setSaveMessage(''), 4000);
+  };
 
   useEffect(() => {
     const reportRef = doc(db, ...REPORT_DOC_PATH);
@@ -475,6 +480,31 @@ export default function ShiftReportDashboard() {
         html[data-cbm-theme='dark'] select { background-color: #020617 !important; color: #e5e7eb !important; border-color: #475569 !important; }
         html[data-cbm-theme='dark'] table tr:hover { background-color: #1e293b !important; }
 
+        /* MAIN TOP HEADER MUST STAY READABLE IN EVERY THEME */
+        html[data-cbm-theme='system'] .bg-slate-950 h1,
+        html[data-cbm-theme='light'] .bg-slate-950 h1,
+        html[data-cbm-theme='dark'] .bg-slate-950 h1,
+        html[data-cbm-theme='system'] .bg-slate-950 p,
+        html[data-cbm-theme='light'] .bg-slate-950 p,
+        html[data-cbm-theme='dark'] .bg-slate-950 p {
+          color: #f8fafc !important;
+        }
+
+        html[data-cbm-theme='system'] .bg-slate-950 .text-slate-400,
+        html[data-cbm-theme='light'] .bg-slate-950 .text-slate-400,
+        html[data-cbm-theme='dark'] .bg-slate-950 .text-slate-400 {
+          color: #cbd5e1 !important;
+        }
+
+        html[data-cbm-theme='system'] .bg-slate-950 .text-slate-500,
+        html[data-cbm-theme='light'] .bg-slate-950 .text-slate-500,
+        html[data-cbm-theme='dark'] .bg-slate-950 .text-slate-500,
+        html[data-cbm-theme='system'] .bg-slate-950 .text-slate-600,
+        html[data-cbm-theme='light'] .bg-slate-950 .text-slate-600,
+        html[data-cbm-theme='dark'] .bg-slate-950 .text-slate-600 {
+          color: #94a3b8 !important;
+        }
+
         /* DARK MODE READABILITY */
         html[data-cbm-theme='dark'] h1,
         html[data-cbm-theme='dark'] h2,
@@ -542,6 +572,7 @@ export default function ShiftReportDashboard() {
           lastSaved={lastSaved}
           themePreference={themePreference}
           setThemePreference={setThemePreference}
+          saveThemePreference={saveThemePreference}
         />
 
         {saveMessage && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{saveMessage}</div>}
