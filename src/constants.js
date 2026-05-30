@@ -1,11 +1,6 @@
 export const DEFAULT_TOTAL_SENSORS = 2887;
-
 export const PRIMARY_ADMIN_EMAIL = 'nicopre@amazon.com';
-
-export const REPORT_DOC_PATH = [
-  'dashboards',
-  'currentShiftReport',
-];
+export const REPORT_DOC_PATH = ['dashboards', 'currentShiftReport'];
 
 export const USER_ROLES = {
   ADMIN: 'Admin',
@@ -17,35 +12,44 @@ export const severityOrder = {
   High: 1,
   Standard: 2,
   'Hardware Issue': 3,
+  'FWO/Work from PM - Crit 1/Backlog': 4,
+  'FWO/Work from PM - Crit 2/Backlog': 5,
+  'FWO/Work from PM - Crit 3/Backlog': 6,
+  Corrective: 7,
+  Project: 8,
+  'CBM Work': 9,
+  'PM 4wk': 10,
+  'PM 12/13wk': 11,
+  'PM 26wk': 12,
+  'PM 52wk': 13,
+  'Site Action Tracker': 14,
 };
 
 export const categories = [
-  {
-    name: 'Critical',
-    color: 'bg-red-600',
-    chartColor: '#dc2626',
-  },
-  {
-    name: 'High',
-    color: 'bg-orange-500',
-    chartColor: '#f97316',
-  },
-  {
-    name: 'Standard',
-    color: 'bg-yellow-500',
-    chartColor: '#eab308',
-  },
-  {
-    name: 'Hardware Issue',
-    color: 'bg-blue-500',
-    chartColor: '#2563eb',
-  },
+  { name: 'Critical', color: 'bg-red-600', chartColor: '#dc2626' },
+  { name: 'High', color: 'bg-orange-500', chartColor: '#f97316' },
+  { name: 'Standard', color: 'bg-yellow-500', chartColor: '#eab308' },
+  { name: 'Hardware Issue', color: 'bg-blue-500', chartColor: '#2563eb' },
 ];
 
-export const activeAlarmCategories =
-  categories.filter(
-    (category) => category.name !== 'Hardware Issue'
-  );
+export const dtwCategoryOptions = [
+  ...categories,
+  { name: 'FWO/Work from PM - Crit 1/Backlog', color: 'bg-red-800' },
+  { name: 'FWO/Work from PM - Crit 2/Backlog', color: 'bg-orange-700' },
+  { name: 'FWO/Work from PM - Crit 3/Backlog', color: 'bg-yellow-700' },
+  { name: 'Corrective', color: 'bg-rose-700' },
+  { name: 'Project', color: 'bg-indigo-700' },
+  { name: 'CBM Work', color: 'bg-cyan-700' },
+  { name: 'PM 4wk', color: 'bg-emerald-700' },
+  { name: 'PM 12/13wk', color: 'bg-green-700' },
+  { name: 'PM 26wk', color: 'bg-teal-700' },
+  { name: 'PM 52wk', color: 'bg-blue-700' },
+  { name: 'Site Action Tracker', color: 'bg-purple-700' },
+];
+
+export const activeAlarmCategories = categories.filter(
+  (category) => category.name !== 'Hardware Issue'
+);
 
 export const hardwareIssueTypes = [
   'Replace Sensor',
