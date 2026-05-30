@@ -67,12 +67,23 @@ export function Header({
                 />
               ))}
             </div>
+
             <div>
-              <h1 className="text-base md:text-xl font-semibold text-white uppercase leading-none">STL8 CBM Crew</h1>
-              <p className="text-slate-400 text-xs mt-0.5">Condition Based Monitoring Program</p>
-              <p className="text-slate-500 text-[10px] uppercase mt-0.5">Shift Report · Active Alarms · Sensor Health Overview</p>
-              <p className="text-slate-500 text-[10px] mt-0.5">Signed in as: {currentUser.name}</p>
-              <p className="text-slate-600 text-[10px] mt-0.5">Last saved: {lastSaved}</p>
+              <h1 className="text-base md:text-xl font-semibold text-white uppercase leading-none">
+                STL8 CBM Crew
+              </h1>
+              <p className="text-slate-400 text-xs mt-0.5">
+                Condition Based Monitoring Program
+              </p>
+              <p className="text-slate-500 text-[10px] uppercase mt-0.5">
+                Shift Report · Active Alarms · Sensor Health Overview
+              </p>
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Signed in as: {currentUser.name}
+              </p>
+              <p className="text-slate-600 text-[10px] mt-0.5">
+                Last saved: {lastSaved}
+              </p>
             </div>
           </div>
 
@@ -86,37 +97,58 @@ export function Header({
               <option value="light">Light</option>
               <option value="dark">Dark</option>
             </select>
+
             <Button
               onClick={saveThemePreference}
               className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3"
             >
               Save Theme
+            </Button>
+
             <Button
               onClick={() => (canEdit ? setIsEditMode(!isEditMode) : setShowLogin(true))}
-              className={`${isEditMode ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-800'} text-white h-8 text-xs px-3`}
+              className={`${
+                isEditMode
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-slate-700 hover:bg-slate-800'
+              } text-white h-8 text-xs px-3`}
             >
               {isEditMode ? 'Edit Mode Enabled' : canEdit ? 'View Only Mode' : 'Admin Login / Edit'}
             </Button>
 
             {canEdit && isEditMode && (
-              <Button onClick={saveDashboard} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs px-3">
-                <Save className="mr-2 h-4 w-4" /> Save Report
+              <Button
+                onClick={saveDashboard}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs px-3"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Save Report
               </Button>
             )}
 
-            <Button onClick={exportToPDF} className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3">
+            <Button
+              onClick={exportToPDF}
+              className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3"
+            >
               Export PDF
             </Button>
 
             {canEdit && isPrimaryAdmin && (
-              <Button onClick={() => setShowAdminManager(true)} className="bg-purple-700 hover:bg-purple-800 text-white h-8 text-xs px-3">
+              <Button
+                onClick={() => setShowAdminManager(true)}
+                className="bg-purple-700 hover:bg-purple-800 text-white h-8 text-xs px-3"
+              >
                 Manage Admin Access
               </Button>
             )}
 
             {canEdit && (
-              <Button onClick={handleLogout} className="bg-red-700 hover:bg-red-800 text-white h-8 text-xs px-3">
-                <LogOut className="mr-2 h-4 w-4" /> Exit Admin
+              <Button
+                onClick={handleLogout}
+                className="bg-red-700 hover:bg-red-800 text-white h-8 text-xs px-3"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Exit Admin
               </Button>
             )}
           </div>
