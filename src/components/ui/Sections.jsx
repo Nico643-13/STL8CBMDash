@@ -12,6 +12,7 @@ import {
   DEFAULT_TOTAL_SENSORS,
   activeAlarmCategories,
   categories,
+  dtwCategoryOptions,
   hardwareIssueTypes,
   issueOptions,
 } from '../../constants';
@@ -228,24 +229,80 @@ export function SensorHealthCard({ sensorHealthData, activeAlarmCount, normalSen
   );
 }
 
-export function DTWTable({ isEditMode, canEdit, newDTW, setNewDTW, addDTWRepair, sortedScheduledDTW, updateDTWRepair, removeDTWRepair }) {
+export function DTWTable({
+  isEditMode,
+  canEdit,
+  newDTW,
+  setNewDTW,
+  addDTWRepair,
+  sortedScheduledDTW,
+  updateDTWRepair,
+  removeDTWRepair,
+}) {
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader className="py-3"><CardTitle className="text-slate-900 dark:text-slate-100">Next Day Scheduled DTW</CardTitle></CardHeader>
+      <CardHeader className="py-3">
+        <CardTitle className="text-lg">Next Day Scheduled DTW</CardTitle>
+      </CardHeader>
+
       <CardContent className="space-y-3">
         {isEditMode && canEdit && (
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2 rounded-xl border bg-slate-50 p-3">
-            <select className="rounded-lg border p-2 text-sm" value={newDTW.category} onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}>{categories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}</select>
-            <Input placeholder="Asset" value={newDTW.asset} onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })} />
-            <Input placeholder="Component" value={newDTW.component} onChange={(e) => setNewDTW({ ...newDTW, component: e.target.value })} />
-            <Input placeholder="WO#" value={newDTW.workOrder || ''} onChange={(e) => setNewDTW({ ...newDTW, workOrder: e.target.value })} />
-            <select className="rounded-lg border p-2 text-sm" value={newDTW.issue} onChange={(e) => setNewDTW({ ...newDTW, issue: e.target.value })}>
+            <select
+              className="rounded-lg border p-2 text-sm"
+              value={newDTW.category}
+              onChange={(e) => setNewDTW({ ...newDTW, category: e.target.value })}
+            >
+              {dtwCategoryOptions.map((cat) => (
+                <option key={cat.name} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+
+            <Input
+              placeholder="Asset"
+              value={newDTW.asset}
+              onChange={(e) => setNewDTW({ ...newDTW, asset: e.target.value })}
+            />
+
+            <Input
+              placeholder="Component"
+              value={newDTW.component}
+              onChange={(e) => setNewDTW({ ...newDTW, component: e.target.value })}
+            />
+
+            <Input
+              placeholder="WO#"
+              value={newDTW.workOrder || ''}
+              onChange={(e) => setNewDTW({ ...newDTW, workOrder: e.target.value })}
+            />
+
+            <select
+              className="rounded-lg border p-2 text-sm"
+              value={newDTW.issue}
+              onChange={(e) => setNewDTW({ ...newDTW, issue: e.target.value })}
+            >
               <option value="">Select Issue</option>
-              {issueOptions.map((issue) => <option key={issue} value={issue}>{issue}</option>)}
+              {issueOptions.map((issue) => (
+                <option key={issue} value={issue}>
+                  {issue}
+                </option>
+              ))}
               <option value="Custom">Custom Issue</option>
             </select>
-            <Input placeholder="Custom issue" value={newDTW.customIssue} disabled={newDTW.issue !== 'Custom'} onChange={(e) => setNewDTW({ ...newDTW, customIssue: e.target.value })} />
-            <Button onClick={addDTWRepair}><Plus className="mr-2 h-4 w-4" /> Add DTW</Button>
+
+            <Input
+              placeholder="Custom issue"
+              value={newDTW.customIssue}
+              disabled={newDTW.issue !== 'Custom'}
+              onChange={(e) => setNewDTW({ ...newDTW, customIssue: e.target.value })}
+            />
+
+            <Button onClick={addDTWRepair}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add DTW
+            </Button>
           </div>
         )}
 
@@ -259,29 +316,138 @@ export function DTWTable({ isEditMode, canEdit, newDTW, setNewDTW, addDTWRepair,
                 <th className="px-3 py-2 text-left">Issue</th>
                 <th className="px-3 py-2 text-left">WO#</th>
                 <th className="px-3 py-2 text-left">Repair Description</th>
-                {isEditMode && canEdit && <th className="px-3 py-2 text-center">Remove</th>}
+                {isEditMode && canEdit && (
+                  <th className="px-3 py-2 text-center">Remove</th>
+                )}
               </tr>
             </thead>
+
             <tbody>
-              {sortedScheduledDTW.length > 0 ? sortedScheduledDTW.map((repair) => (
-                <tr key={repair.id} className="border-t bg-white align-top">
-                  <td className="px-3 py-2"><Badge className={`${categories.find((cat) => cat.name === repair.category)?.color} text-white`}>{repair.category}</Badge></td>
-                  <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.asset} onChange={(e) => updateDTWRepair(repair.id, 'asset', e.target.value)} /> : repair.asset}</td>
-                  <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.component} onChange={(e) => updateDTWRepair(repair.id, 'component', e.target.value)} /> : repair.component}</td>
-                  <td className="px-3 py-2">{isEditMode && canEdit ? <Input value={repair.issue} onChange={(e) => updateDTWRepair(repair.id, 'issue', e.target.value)} /> : repair.issue}</td>
-                  <td className="px-3 py-2">
-                    {isEditMode && canEdit ? (
-                      <Input value={repair.workOrder || ''} onChange={(e) => updateDTWRepair(repair.id, 'workOrder', e.target.value)} />
-                    ) : repair.workOrder ? (
-                      <a href={buildWorkOrderUrl(repair.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">{repair.workOrder}</a>
-                    ) : (
-                      '-'
+              {sortedScheduledDTW.length > 0 ? (
+                sortedScheduledDTW.map((repair) => (
+                  <tr key={repair.id} className="border-t bg-white align-top">
+                    <td className="px-3 py-2">
+                      {isEditMode && canEdit ? (
+                        <select
+                          className="w-full rounded-lg border p-2 text-xs"
+                          value={repair.category}
+                          onChange={(e) =>
+                            updateDTWRepair(repair.id, 'category', e.target.value)
+                          }
+                        >
+                          {dtwCategoryOptions.map((cat) => (
+                            <option key={cat.name} value={cat.name}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Badge
+                          className={`${
+                            dtwCategoryOptions.find((cat) => cat.name === repair.category)?.color ||
+                            'bg-slate-700'
+                          } text-white`}
+                        >
+                          {repair.category}
+                        </Badge>
+                      )}
+                    </td>
+
+                    <td className="px-3 py-2">
+                      {isEditMode && canEdit ? (
+                        <Input
+                          value={repair.asset}
+                          onChange={(e) =>
+                            updateDTWRepair(repair.id, 'asset', e.target.value)
+                          }
+                        />
+                      ) : (
+                        repair.asset
+                      )}
+                    </td>
+
+                    <td className="px-3 py-2">
+                      {isEditMode && canEdit ? (
+                        <Input
+                          value={repair.component}
+                          onChange={(e) =>
+                            updateDTWRepair(repair.id, 'component', e.target.value)
+                          }
+                        />
+                      ) : (
+                        repair.component
+                      )}
+                    </td>
+
+                    <td className="px-3 py-2">
+                      {isEditMode && canEdit ? (
+                        <Input
+                          value={repair.issue}
+                          onChange={(e) =>
+                            updateDTWRepair(repair.id, 'issue', e.target.value)
+                          }
+                        />
+                      ) : (
+                        repair.issue
+                      )}
+                    </td>
+
+                    <td className="px-3 py-2">
+                      {isEditMode && canEdit ? (
+                        <Input
+                          value={repair.workOrder || ''}
+                          onChange={(e) =>
+                            updateDTWRepair(repair.id, 'workOrder', e.target.value)
+                          }
+                        />
+                      ) : repair.workOrder ? (
+                        <a
+                          href={buildWorkOrderUrl(repair.workOrder)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          {repair.workOrder}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+
+                    <td className="px-3 py-2">
+                      <Textarea
+                        value={repair.repairNotes}
+                        disabled={!isEditMode || !canEdit}
+                        onChange={(e) =>
+                          updateDTWRepair(repair.id, 'repairNotes', e.target.value)
+                        }
+                        className="min-h-[64px] text-xs"
+                      />
+                    </td>
+
+                    {isEditMode && canEdit && (
+                      <td className="px-3 py-2 text-center">
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => removeDTWRepair(repair.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </td>
                     )}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={isEditMode && canEdit ? 7 : 6}
+                    className="px-3 py-6 text-center text-sm text-slate-500"
+                  >
+                    No scheduled downtime window repairs added.
                   </td>
-                  <td className="px-3 py-2"><Textarea value={repair.repairNotes} disabled={!isEditMode || !canEdit} onChange={(e) => updateDTWRepair(repair.id, 'repairNotes', e.target.value)} className="min-h-[64px] text-xs" /></td>
-                  {isEditMode && canEdit && <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" onClick={() => removeDTWRepair(repair.id)}><Trash2 className="w-3 h-3" /></Button></td>}
                 </tr>
-              )) : <tr><td colSpan={isEditMode && canEdit ? 7 : 6} className="px-3 py-6 text-center text-sm text-slate-500">No scheduled downtime window repairs added.</td></tr>}
+              )}
             </tbody>
           </table>
         </div>
