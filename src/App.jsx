@@ -42,24 +42,8 @@ export default function ShiftReportDashboard() {
   const [reportInfo, setReportInfo] = useState({ date: new Date().toISOString().split('T')[0], summary: '' });
   const [alarms, setAlarms] = useState([]);
   const [scheduledDTW, setScheduledDTW] = useState([]);
-
-  const [newAlarm, setNewAlarm] = useState({
-    asset: '',
-    component: '',
-    issue: '',
-    category: 'Critical',
-    workOrder: '',
-  });
-
-  const [newDTW, setNewDTW] = useState({
-    category: 'Critical',
-    asset: '',
-    component: '',
-    issue: '',
-    customIssue: '',
-    repairNotes: '',
-    workOrder: '',
-  });
+  const [newAlarm, setNewAlarm] = useState({ asset: '', component: '', issue: '', category: 'Critical' });
+  const [newDTW, setNewDTW] = useState({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -67,9 +51,26 @@ export default function ShiftReportDashboard() {
   const [saveMessage, setSaveMessage] = useState('');
   const [alarmEntryMessage, setAlarmEntryMessage] = useState('');
   const [snapshotUploadMessage, setSnapshotUploadMessage] = useState('');
+  const [themePreference, setThemePreference] = useState(() => localStorage.getItem('cbm-theme-preference') || 'system');
 
   const isPrimaryAdmin = currentUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
   const canEdit = currentUser.role === USER_ROLES.ADMIN || isPrimaryAdmin;
+
+  useEffect(() => {
+    const applyTheme = () => {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const resolvedTheme = themePreference === 'system' ? (prefersDark ? 'dark' : 'light') : themePreference;
+      document.documentElement.dataset.cbmTheme = resolvedTheme;
+      localStorage.setItem('cbm-theme-preference', themePreference);
+    };
+
+    applyTheme();
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', applyTheme);
+
+    return () => mediaQuery.removeEventListener('change', applyTheme);
+  }, [themePreference]);
 
   useEffect(() => {
     const reportRef = doc(db, ...REPORT_DOC_PATH);
@@ -260,14 +261,7 @@ export default function ShiftReportDashboard() {
       },
     ]);
 
-    setNewAlarm({
-      asset: '',
-      component: '',
-      issue: '',
-      category: 'Critical',
-      workOrder: '',
-    });
-
+    setNewAlarm({ asset: '', component: '', issue: '', category: 'Critical' });
     setAlarmEntryMessage('Alarm added. Click Save Report to save your changes.');
     setTimeout(() => setAlarmEntryMessage(''), 4000);
   };
@@ -275,18 +269,8 @@ export default function ShiftReportDashboard() {
   const addDTWRepair = () => {
     const finalIssue = newDTW.issue === 'Custom' ? newDTW.customIssue : newDTW.issue;
     if (!newDTW.asset || !finalIssue || !canEdit || !isEditMode) return;
-
     setScheduledDTW([...scheduledDTW, { ...newDTW, issue: finalIssue, customIssue: '', id: Date.now() }]);
-
-    setNewDTW({
-      category: 'Critical',
-      asset: '',
-      component: '',
-      issue: '',
-      customIssue: '',
-      repairNotes: '',
-      workOrder: '',
-    });
+    setNewDTW({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
   };
 
   const addAlarmToDTW = (alarm) => {
@@ -295,7 +279,9 @@ export default function ShiftReportDashboard() {
     const alreadyScheduled = scheduledDTW.some(
       (repair) =>
         repair.sourceAlarmId === alarm.id ||
-        (repair.asset === alarm.asset && repair.component === alarm.component && repair.issue === alarm.issue)
+        (repair.asset === alarm.asset &&
+          repair.component === alarm.component &&
+          repair.issue === alarm.issue)
     );
 
     if (alreadyScheduled) {
@@ -315,13 +301,12 @@ export default function ShiftReportDashboard() {
         issue: alarm.issue,
         customIssue: '',
         repairNotes: `Added from Active Alarm created ${alarm.createdAt || ''}`.trim(),
-        workOrder: alarm.workOrder || '',
       },
     ]);
 
     setSaveMessage('Active Alarm added to Next Day Scheduled DTW. Click Save Report to save this change.');
     setTimeout(() => setSaveMessage(''), 5000);
-  };
+  }; 
 
   const updateDTWRepair = (id, field, value) => {
     setScheduledDTW(scheduledDTW.map((repair) => (repair.id === id ? { ...repair, [field]: value } : repair)));
@@ -411,7 +396,10 @@ export default function ShiftReportDashboard() {
     if (!canEdit || !isEditMode) return;
 
     const matchingAlarm = alarms.find(
-      (alarm) => alarm.category === 'Hardware Issue' && alarm.issue === issueType && alarm.status !== 'Resolved'
+      (alarm) =>
+        alarm.category === 'Hardware Issue' &&
+        alarm.issue === issueType &&
+        alarm.status !== 'Resolved'
     );
 
     if (!matchingAlarm) return;
@@ -479,7 +467,26 @@ export default function ShiftReportDashboard() {
   }, [scheduledDTW]);
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6 print:bg-white print:p-2">
+    <div className="min-h-screen bg-slate-100 p-6 print:bg-white print:p-2 cbm-theme-root">
+      <style>{`
+        html[data-cbm-theme='dark'] body { background: #020617; }
+        html[data-cbm-theme='dark'] .cbm-theme-root { background: #020617 !important; color: #e5e7eb; }
+        html[data-cbm-theme='dark'] .rounded-2xl,
+        html[data-cbm-theme='dark'] .rounded-xl,
+        html[data-cbm-theme='dark'] .rounded-lg { border-color: #334155; }
+        html[data-cbm-theme='dark'] .bg-white { background-color: #0f172a !important; color: #e5e7eb !important; }
+        html[data-cbm-theme='dark'] .bg-slate-50 { background-color: #111827 !important; color: #e5e7eb !important; }
+        html[data-cbm-theme='dark'] .bg-slate-100 { background-color: #020617 !important; color: #e5e7eb !important; }
+        html[data-cbm-theme='dark'] .text-slate-800,
+        html[data-cbm-theme='dark'] .text-slate-700,
+        html[data-cbm-theme='dark'] .text-slate-600 { color: #e5e7eb !important; }
+        html[data-cbm-theme='dark'] .text-slate-500 { color: #94a3b8 !important; }
+        html[data-cbm-theme='dark'] input,
+        html[data-cbm-theme='dark'] textarea,
+        html[data-cbm-theme='dark'] select { background-color: #020617 !important; color: #e5e7eb !important; border-color: #475569 !important; }
+        html[data-cbm-theme='dark'] table tr:hover { background-color: #1e293b !important; }
+        html[data-cbm-theme='light'] body { background: #f1f5f9; }
+      `}</style>
       <div className="max-w-7xl mx-auto space-y-6">
         <Header
           currentUser={currentUser}
@@ -493,6 +500,8 @@ export default function ShiftReportDashboard() {
           saveDashboard={saveDashboard}
           exportToPDF={exportToPDF}
           lastSaved={lastSaved}
+          themePreference={themePreference}
+          setThemePreference={setThemePreference}
         />
 
         {saveMessage && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">{saveMessage}</div>}
@@ -504,45 +513,10 @@ export default function ShiftReportDashboard() {
         </div>
 
         <SensorHealthCard sensorHealthData={sensorHealthData} activeAlarmCount={activeAlarmCount} normalSensorCount={normalSensorCount} activeAlarmPercent={activeAlarmPercent} normalSensorPercent={normalSensorPercent} />
+        <DTWTable isEditMode={isEditMode} canEdit={canEdit} newDTW={newDTW} setNewDTW={setNewDTW} addDTWRepair={addDTWRepair} sortedScheduledDTW={sortedScheduledDTW} updateDTWRepair={updateDTWRepair} removeDTWRepair={removeDTWRepair} />
+        <ActiveAlarmsTable filteredAlarms={filteredAlarms} countByCategory={countByCategory} categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter} searchTerm={searchTerm} setSearchTerm={setSearchTerm} isEditMode={isEditMode} canEdit={canEdit} toggleAlarmDetails={toggleAlarmDetails} removeAlarm={removeAlarm} updateAlarmDeepDive={updateAlarmDeepDive} updateAlarmField={updateAlarmField} uploadSensorSnapshot={uploadSensorSnapshot} removeSensorSnapshot={removeSensorSnapshot} addAlarmToDTW={addAlarmToDTW} />
 
-        <DTWTable
-          isEditMode={isEditMode}
-          canEdit={canEdit}
-          newDTW={newDTW}
-          setNewDTW={setNewDTW}
-          addDTWRepair={addDTWRepair}
-          sortedScheduledDTW={sortedScheduledDTW}
-          updateDTWRepair={updateDTWRepair}
-          removeDTWRepair={removeDTWRepair}
-        />
-
-        <ActiveAlarmsTable
-          filteredAlarms={filteredAlarms}
-          countByCategory={countByCategory}
-          categoryFilter={categoryFilter}
-          setCategoryFilter={setCategoryFilter}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          isEditMode={isEditMode}
-          canEdit={canEdit}
-          toggleAlarmDetails={toggleAlarmDetails}
-          removeAlarm={removeAlarm}
-          updateAlarmDeepDive={updateAlarmDeepDive}
-          updateAlarmField={updateAlarmField}
-          uploadSensorSnapshot={uploadSensorSnapshot}
-          removeSensorSnapshot={removeSensorSnapshot}
-          addAlarmToDTW={addAlarmToDTW}
-        />
-
-        <HardwareIssuesTable
-          hardwareIssueCounts={hardwareIssueCounts}
-          totalHardwareIssues={totalHardwareIssues}
-          alarms={alarms}
-          isEditMode={isEditMode}
-          canEdit={canEdit}
-          updateAlarmField={updateAlarmField}
-          resolveOneHardwareIssue={resolveOneHardwareIssue}
-        />
+        <HardwareIssuesTable hardwareIssueCounts={hardwareIssueCounts} totalHardwareIssues={totalHardwareIssues} alarms={alarms} isEditMode={isEditMode} canEdit={canEdit} updateAlarmField={updateAlarmField} resolveOneHardwareIssue={resolveOneHardwareIssue} />
 
         <LoginModal showLogin={showLogin} loginEmail={loginEmail} setLoginEmail={setLoginEmail} loginPassword={loginPassword} setLoginPassword={setLoginPassword} loginError={loginError} setLoginError={setLoginError} setShowLogin={setShowLogin} handleLogin={handleLogin} />
         <AdminManagerModal showAdminManager={showAdminManager} setShowAdminManager={setShowAdminManager} newAdminEmail={newAdminEmail} setNewAdminEmail={setNewAdminEmail} grantAdminAccess={grantAdminAccess} adminAccessMessage={adminAccessMessage} setAdminAccessMessage={setAdminAccessMessage} approvedAdmins={approvedAdmins} sendPasswordSetupEmail={sendPasswordSetupEmail} removeAdminAccess={removeAdminAccess} />
