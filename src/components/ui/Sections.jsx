@@ -582,10 +582,12 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
     setSelectedHardwareIds([]);
   };
 
+  const isAwaitingDTW = (status) => status === 'On Hold - Awaiting DTW/Break';
+
   return (
     <Card className="rounded-2xl shadow-lg">
       <CardHeader className="py-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-slate-900 dark:text-slate-100">Hardware Issues</CardTitle>
+        <CardTitle className="text-lg">Hardware Issues</CardTitle>
 
         <Button
           variant="outline"
@@ -673,6 +675,29 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
                                   ))}
                                 </select>
                               </div>
+
+                              {isAwaitingDTW(alarm.status) && (
+                                <div className="mt-2">
+                                  <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+                                    DTW / Break Reason
+                                  </label>
+
+                                  <select
+                                    className="w-full rounded-md border p-2 text-xs"
+                                    disabled={!isEditMode || !canEdit}
+                                    value={alarm.dtwBreakReason || ''}
+                                    onChange={(e) => updateAlarmField(alarm.id, 'dtwBreakReason', e.target.value)}
+                                  >
+                                    <option value="">Select reason</option>
+                                    <option value="Location Elevated - Requires Lift">
+                                      Location Elevated - Requires Lift
+                                    </option>
+                                    <option value="Location Requires LOTO">
+                                      Location Requires LOTO
+                                    </option>
+                                  </select>
+                                </div>
+                              )}
                             </div>
                           ))
                         ) : (
@@ -699,7 +724,7 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
         )}
 
         <p className="mt-2 text-xs text-slate-500">
-          Total active hardware issues: {totalHardwareIssues}. Click a header to view hardware items, update status, or select completed items to remove. Click Save Report afterward.
+          Total active hardware issues: {totalHardwareIssues}. If status is Awaiting DTW/Break, select the reason. Click Save Report afterward.
         </p>
       </CardContent>
     </Card>
