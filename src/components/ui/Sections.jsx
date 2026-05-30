@@ -260,18 +260,19 @@ export function ActiveAlarmsTable({
 }) {
   return (
     <Card className="rounded-2xl shadow-lg">
-<CardHeader className="flex flex-row items-center justify-between">
-  <CardTitle>Active Alarms</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Active Alarms</CardTitle>
 
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={openWaitesWireless}
-    className="bg-blue-50 border-blue-300 text-blue-700"
-  >
-    Open In Waites Wireless
-  </Button>
-</CardHeader>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openWaitesWireless}
+          className="bg-blue-50 border-blue-300 text-blue-700"
+        >
+          Open In Waites Wireless
+        </Button>
+      </CardHeader>
+
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
           {activeAlarmCategories.map((cat) => (
@@ -285,11 +286,23 @@ export function ActiveAlarmsTable({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-4 print:hidden">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <Input placeholder="Search asset, issue, component, or location" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+            <Input
+              placeholder="Search asset, issue, component, or location"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
           </div>
-          <select className="rounded-lg border p-2 text-sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+
+          <select
+            className="rounded-lg border p-2 text-sm"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
             <option value="All">All Severities</option>
-            {activeAlarmCategories.map((cat) => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+            {activeAlarmCategories.map((cat) => (
+              <option key={cat.name} value={cat.name}>{cat.name}</option>
+            ))}
           </select>
         </div>
 
@@ -305,6 +318,7 @@ export function ActiveAlarmsTable({
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-left">Created</th>
                 <th className="px-3 py-2 text-center">Details</th>
+
                 {isEditMode && canEdit && (
                   <>
                     <th className="px-3 py-2 text-center">Remove</th>
@@ -313,28 +327,84 @@ export function ActiveAlarmsTable({
                 )}
               </tr>
             </thead>
+
             <tbody>
               {filteredAlarms.map((alarm) => (
                 <React.Fragment key={alarm.id}>
                   <tr className="border-t hover:bg-slate-50">
-                    <td className="px-3 py-2"><Badge className={`${categories.find((cat) => cat.name === alarm.category)?.color} text-white text-[10px]`}>{alarm.category}</Badge></td>
+                    <td className="px-3 py-2">
+                      <Badge className={`${categories.find((cat) => cat.name === alarm.category)?.color} text-white text-[10px]`}>
+                        {alarm.category}
+                      </Badge>
+                    </td>
+
                     <td className="px-3 py-2 font-semibold">{alarm.asset}</td>
                     <td className="px-3 py-2">{alarm.issue}</td>
                     <td className="px-3 py-2">{alarm.component || '-'}</td>
+
                     <td className="px-3 py-2">
                       {alarm.workOrder ? (
-                        <a href={buildWorkOrderUrl(alarm.workOrder)} target="_blank" rel="noreferrer" className="text-blue-600 underline">{alarm.workOrder}</a>
+                        <a
+                          href={buildWorkOrderUrl(alarm.workOrder)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          {alarm.workOrder}
+                        </a>
                       ) : (
                         '-'
                       )}
                     </td>
-                    <td className="px-3 py-2"><Badge className="bg-slate-700 text-white text-[10px]">{alarm.status}</Badge></td>
+
+                    <td className="px-3 py-2">
+                      <Badge className="bg-slate-700 text-white text-[10px]">
+                        {alarm.status}
+                      </Badge>
+                    </td>
+
                     <td className="px-3 py-2 text-[11px] text-slate-500">{alarm.createdAt}</td>
-                    <td className="px-3 py-2 text-center"><Button variant="outline" onClick={() => toggleAlarmDetails(alarm.id)} className="h-7 text-[11px] px-2">{alarm.showDetails ? <><ChevronUp className="mr-2 w-4 h-4" /> Hide</> : <><ChevronDown className="mr-2 w-4 h-4" /> View</>}</Button></td>
+
+                    <td className="px-3 py-2 text-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => toggleAlarmDetails(alarm.id)}
+                        className="h-7 text-[11px] px-2"
+                      >
+                        {alarm.showDetails ? (
+                          <>
+                            <ChevronUp className="mr-2 w-4 h-4" /> Hide
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="mr-2 w-4 h-4" /> View
+                          </>
+                        )}
+                      </Button>
+                    </td>
+
                     {isEditMode && canEdit && (
                       <>
-                        <td className="px-3 py-2 text-center"><Button variant="destructive" size="icon" className="h-7 w-7" onClick={() => removeAlarm(alarm.id)}><Trash2 className="w-3 h-3" /></Button></td>
-                        <td className="px-3 py-2 text-center"><Button variant="outline" className="h-7 text-[11px] px-2" onClick={() => addAlarmToDTW(alarm)}>Add</Button></td>
+                        <td className="px-3 py-2 text-center">
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => removeAlarm(alarm.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </td>
+
+                        <td className="px-3 py-2 text-center">
+                          <Button
+                            variant="outline"
+                            className="h-7 text-[11px] px-2"
+                            onClick={() => addAlarmToDTW(alarm)}
+                          >
+                            Add
+                          </Button>
+                        </td>
                       </>
                     )}
                   </tr>
@@ -342,31 +412,67 @@ export function ActiveAlarmsTable({
                   {alarm.showDetails && (
                     <tr className="bg-slate-50 border-t">
                       <td colSpan={isEditMode && canEdit ? 10 : 8} className="p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <Input placeholder="Area / Location" disabled={!isEditMode} value={alarm.deepDive.location} onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)} />
-                          <Textarea placeholder="Thermal findings / notes" disabled={!isEditMode} value={alarm.deepDive.thermographicNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)} />
-                          <Textarea placeholder="Vibration findings / notes" disabled={!isEditMode} value={alarm.deepDive.vibrationNotes} onChange={(e) => updateAlarmDeepDive(alarm.id, 'vibrationNotes', e.target.value)} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            placeholder="Area / Location"
+                            disabled={!isEditMode}
+                            value={alarm.deepDive.location}
+                            onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)}
+                          />
 
-                          <select className="rounded-lg border p-3" disabled={!isEditMode} value={alarm.deepDive.trend} onChange={(e) => updateAlarmDeepDive(alarm.id, 'trend', e.target.value)}>
-                            <option>Stable</option><option>Rising</option><option>Falling</option><option>Intermittent Spikes</option>
+                          <select
+                            className="rounded-lg border p-3"
+                            disabled={!isEditMode}
+                            value={alarm.status}
+                            onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}
+                          >
+                            <option>Open</option>
+                            <option>Monitoring</option>
+                            <option>On Hold - Waiting on Parts</option>
                           </select>
 
-                          <select className="rounded-lg border p-3" disabled={!isEditMode} value={alarm.status} onChange={(e) => updateAlarmField(alarm.id, 'status', e.target.value)}>
-                            <option>Open</option><option>Acknowledged</option><option>Monitoring</option><option>Resolved</option>
-                          </select>
+                          <Textarea
+                            placeholder="Comments / Notes"
+                            disabled={!isEditMode}
+                            value={alarm.deepDive.thermographicNotes || ''}
+                            onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)}
+                            className="min-h-[120px] md:col-span-2"
+                          />
 
-                          <div>
+                          <div className="md:col-span-2">
                             {isEditMode && canEdit && (
                               <label className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 print:hidden">
                                 Upload Sensor Snapshot
-                                <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadSensorSnapshot(alarm.id, e)} />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => uploadSensorSnapshot(alarm.id, e)}
+                                />
                               </label>
                             )}
+
                             <div className="mt-3 grid grid-cols-1 gap-3">
                               {(alarm.deepDive.images || []).map((image) => (
                                 <div key={image.id} className="rounded-lg border bg-white p-2">
-                                  <a href={image.url} target="_blank" rel="noreferrer"><img src={image.url} alt={image.name} className="h-32 w-full rounded-md border object-cover" /></a>
-                                  {isEditMode && canEdit && <Button variant="destructive" size="sm" className="mt-2" onClick={() => removeSensorSnapshot(alarm.id, image.id)}>Remove Image</Button>}
+                                  <a href={image.url} target="_blank" rel="noreferrer">
+                                    <img
+                                      src={image.url}
+                                      alt={image.name}
+                                      className="h-32 w-full rounded-md border object-cover"
+                                    />
+                                  </a>
+
+                                  {isEditMode && canEdit && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      className="mt-2"
+                                      onClick={() => removeSensorSnapshot(alarm.id, image.id)}
+                                    >
+                                      Remove Image
+                                    </Button>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -381,7 +487,11 @@ export function ActiveAlarmsTable({
           </table>
         </div>
 
-        {filteredAlarms.length === 0 && <div className="rounded-xl border border-dashed bg-slate-50 p-8 text-center text-slate-500">No alarms match the current filters.</div>}
+        {filteredAlarms.length === 0 && (
+          <div className="rounded-xl border border-dashed bg-slate-50 p-8 text-center text-slate-500">
+            No alarms match the current filters.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
