@@ -42,8 +42,8 @@ export default function ShiftReportDashboard() {
   const [reportInfo, setReportInfo] = useState({ date: new Date().toISOString().split('T')[0], summary: '' });
   const [alarms, setAlarms] = useState([]);
   const [scheduledDTW, setScheduledDTW] = useState([]);
-  const [newAlarm, setNewAlarm] = useState({ asset: '', component: '', issue: '', category: 'Critical' });
-  const [newDTW, setNewDTW] = useState({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
+  const [newAlarm, setNewAlarm] = useState({ asset: '', component: '', issue: '', category: 'Critical', workOrder: '' });
+  const [newDTW, setNewDTW] = useState({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '', workOrder: '' });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -255,7 +255,7 @@ export default function ShiftReportDashboard() {
       },
     ]);
 
-    setNewAlarm({ asset: '', component: '', issue: '', category: 'Critical' });
+    setNewAlarm({ asset: '', component: '', issue: '', category: 'Critical', workOrder: '' });
     setAlarmEntryMessage('Alarm added. Click Save Report to save your changes.');
     setTimeout(() => setAlarmEntryMessage(''), 4000);
   };
@@ -264,7 +264,7 @@ export default function ShiftReportDashboard() {
     const finalIssue = newDTW.issue === 'Custom' ? newDTW.customIssue : newDTW.issue;
     if (!newDTW.asset || !finalIssue || !canEdit || !isEditMode) return;
     setScheduledDTW([...scheduledDTW, { ...newDTW, issue: finalIssue, customIssue: '', id: Date.now() }]);
-    setNewDTW({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '' });
+    setNewDTW({ category: 'Critical', asset: '', component: '', issue: '', customIssue: '', repairNotes: '', workOrder: '' });
   };
 
   const addAlarmToDTW = (alarm) => {
@@ -295,6 +295,7 @@ export default function ShiftReportDashboard() {
         issue: alarm.issue,
         customIssue: '',
         repairNotes: `Added from Active Alarm created ${alarm.createdAt || ''}`.trim(),
+        workOrder: alarm.workOrder || '',
       },
     ]);
 
