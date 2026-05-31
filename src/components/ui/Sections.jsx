@@ -742,7 +742,14 @@ export function ActiveAlarmsTable({
   );
 }
 
-export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, alarms, isEditMode, canEdit, updateAlarmField }) {
+export function HardwareIssuesTable({
+  hardwareIssueCounts,
+  totalHardwareIssues,
+  alarms,
+  isEditMode,
+  canEdit,
+  updateAlarmField,
+}) {
   const [openIssueType, setOpenIssueType] = useState(null);
   const [selectedHardwareIds, setSelectedHardwareIds] = useState([]);
 
@@ -763,11 +770,18 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
   };
 
   const getHardwareDetails = (issueType) =>
-    alarms.filter((alarm) => alarm.category === 'Hardware Issue' && alarm.issue === issueType && alarm.status !== 'Resolved');
+    alarms.filter(
+      (alarm) =>
+        alarm.category === 'Hardware Issue' &&
+        alarm.issue === issueType &&
+        alarm.status !== 'Resolved'
+    );
 
   const toggleSelectedHardware = (alarmId) => {
     setSelectedHardwareIds((current) =>
-      current.includes(alarmId) ? current.filter((id) => id !== alarmId) : [...current, alarmId]
+      current.includes(alarmId)
+        ? current.filter((id) => id !== alarmId)
+        : [...current, alarmId]
     );
   };
 
@@ -818,7 +832,9 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
               <tr className="border-t bg-white">
                 {hardwareIssueTypes.map((issueType) => (
                   <td key={issueType} className="px-3 py-4 text-center align-top">
-                    <div className="text-2xl font-bold text-slate-800">{hardwareIssueCounts[issueType] || 0}</div>
+                    <div className="text-2xl font-bold text-slate-800">
+                      {hardwareIssueCounts[issueType] || 0}
+                    </div>
 
                     {openIssueType === issueType && (
                       <div className="mt-3 rounded-lg border bg-slate-50 p-2 text-left text-xs shadow-sm">
@@ -835,10 +851,27 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
                                   />
                                 )}
 
-                                <div>
-                                  <p className="font-semibold text-slate-800">Asset: {alarm.asset || 'N/A'}</p>
-                                  <p className="text-slate-600">Component: {alarm.component || 'N/A'}</p>
-                                  <p className="text-slate-500">Added: {alarm.createdAt || 'N/A'}</p>
+                                <div className="w-full space-y-2">
+                                  <Input
+                                    placeholder="Asset / Conveyor ID"
+                                    disabled={!isEditMode}
+                                    value={alarm.asset || ''}
+                                    onChange={(e) => updateAlarmField(alarm.id, 'asset', e.target.value)}
+                                  />
+
+                                  <Input
+                                    placeholder="Component"
+                                    disabled={!isEditMode}
+                                    value={alarm.component || ''}
+                                    onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)}
+                                  />
+
+                                  <Input
+                                    placeholder="WO#"
+                                    disabled={!isEditMode}
+                                    value={alarm.workOrder || ''}
+                                    onChange={(e) => updateAlarmField(alarm.id, 'workOrder', e.target.value)}
+                                  />
 
                                   {alarm.workOrder && (
                                     <a
@@ -850,6 +883,8 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
                                       {alarm.workOrder}
                                     </a>
                                   )}
+
+                                  <p className="text-slate-500">Added: {alarm.createdAt || 'N/A'}</p>
                                 </div>
                               </label>
 
@@ -920,7 +955,7 @@ export function HardwareIssuesTable({ hardwareIssueCounts, totalHardwareIssues, 
         )}
 
         <p className="mt-2 text-xs text-slate-500">
-          Total active hardware issues: {totalHardwareIssues}. If status is Awaiting DTW/Break, select the reason. Click Save Report afterward.
+          Total active hardware issues: {totalHardwareIssues}. Expand a header to edit asset, component, WO#, status, or DTW/Break reason. Click Save Report afterward.
         </p>
       </CardContent>
     </Card>
