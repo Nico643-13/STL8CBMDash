@@ -476,7 +476,7 @@ export function ActiveAlarmsTable({
   return (
     <Card className="rounded-2xl shadow-lg">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-slate-900 dark:text-slate-100">Active Alarms</CardTitle>
+        <CardTitle className="text-lg">Active Alarms</CardTitle>
 
         <Button
           variant="outline"
@@ -516,7 +516,9 @@ export function ActiveAlarmsTable({
           >
             <option value="All">All Severities</option>
             {activeAlarmCategories.map((cat) => (
-              <option key={cat.name} value={cat.name}>{cat.name}</option>
+              <option key={cat.name} value={cat.name}>
+                {cat.name}
+              </option>
             ))}
           </select>
         </div>
@@ -629,9 +631,37 @@ export function ActiveAlarmsTable({
                       <td colSpan={isEditMode && canEdit ? 10 : 8} className="p-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <Input
+                            placeholder="Asset / Conveyor ID"
+                            disabled={!isEditMode}
+                            value={alarm.asset || ''}
+                            onChange={(e) => updateAlarmField(alarm.id, 'asset', e.target.value)}
+                          />
+
+                          <Input
+                            placeholder="Component"
+                            disabled={!isEditMode}
+                            value={alarm.component || ''}
+                            onChange={(e) => updateAlarmField(alarm.id, 'component', e.target.value)}
+                          />
+
+                          <Input
+                            placeholder="Issue"
+                            disabled={!isEditMode}
+                            value={alarm.issue || ''}
+                            onChange={(e) => updateAlarmField(alarm.id, 'issue', e.target.value)}
+                          />
+
+                          <Input
+                            placeholder="WO#"
+                            disabled={!isEditMode}
+                            value={alarm.workOrder || ''}
+                            onChange={(e) => updateAlarmField(alarm.id, 'workOrder', e.target.value)}
+                          />
+
+                          <Input
                             placeholder="Area / Location"
                             disabled={!isEditMode}
-                            value={alarm.deepDive.location}
+                            value={alarm.deepDive?.location || ''}
                             onChange={(e) => updateAlarmDeepDive(alarm.id, 'location', e.target.value)}
                           />
 
@@ -649,7 +679,7 @@ export function ActiveAlarmsTable({
                           <Textarea
                             placeholder="Comments / Notes"
                             disabled={!isEditMode}
-                            value={alarm.deepDive.thermographicNotes || ''}
+                            value={alarm.deepDive?.thermographicNotes || ''}
                             onChange={(e) => updateAlarmDeepDive(alarm.id, 'thermographicNotes', e.target.value)}
                             className="min-h-[120px] md:col-span-2"
                           />
@@ -668,7 +698,7 @@ export function ActiveAlarmsTable({
                             )}
 
                             <div className="mt-3 grid grid-cols-1 gap-3">
-                              {(alarm.deepDive.images || []).map((image) => (
+                              {(alarm.deepDive?.images || []).map((image) => (
                                 <div key={image.id} className="rounded-lg border bg-white p-2">
                                   <a href={image.url} target="_blank" rel="noreferrer">
                                     <img
