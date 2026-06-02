@@ -311,20 +311,26 @@ export default function ShiftReportDashboard() {
   const removeAlarm = (id) => setAlarms(alarms.filter((alarm) => alarm.id !== id));
   const toggleAlarmDetails = (id) => setAlarms(alarms.map((alarm) => (alarm.id === id ? { ...alarm, showDetails: !alarm.showDetails } : alarm)));
 
-  const updateAlarmField = (alarmId, field, value) => {
-    setAlarms(
-      alarms.map((alarm) => {
-        if (alarm.id !== alarmId) return alarm;
-        const updates = { [field]: value };
-        if (field === 'status' && value === 'Acknowledged') updates.acknowledgedAt = new Date().toLocaleString();
-        if (field === 'status' && value === 'Resolved') {
-          updates.resolvedAt = new Date().toLocaleString();
-          updates.showDetails = false;
-        }
-        return { ...alarm, ...updates };
-      })
-    );
-  };
+const updateAlarmField = (alarmId, field, value) => {
+  setAlarms((currentAlarms) =>
+    currentAlarms.map((alarm) => {
+      if (alarm.id !== alarmId) return alarm;
+
+      const updates = { [field]: value };
+
+      if (field === 'status' && value === 'Acknowledged') {
+        updates.acknowledgedAt = new Date().toLocaleString();
+      }
+
+      if (field === 'status' && value === 'Resolved') {
+        updates.resolvedAt = new Date().toLocaleString();
+        updates.showDetails = false;
+      }
+
+      return { ...alarm, ...updates };
+    })
+  );
+};
 
   const updateAlarmDeepDive = (alarmId, field, value) => {
     setAlarms(alarms.map((alarm) => (alarm.id === alarmId ? { ...alarm, deepDive: { ...alarm.deepDive, [field]: value } } : alarm)));
