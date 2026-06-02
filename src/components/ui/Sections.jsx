@@ -209,13 +209,36 @@ export function SensorHealthCard({ sensorHealthData, activeAlarmCount, normalSen
       <CardContent>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center">
           <div className="lg:col-span-2 flex justify-center overflow-x-auto">
-            <PieChart width={520} height={260}>
-              <Pie data={sensorHealthData} cx="50%" cy="100%" startAngle={0} endAngle={180} outerRadius={120} innerRadius={70} paddingAngle={2} dataKey="value">
-                {sensorHealthData.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
-              </Pie>
-              <Tooltip formatter={(value, name, props) => [`${props.payload.realValue} sensors`, name]} />
-              <Legend verticalAlign="top" align="center" wrapperStyle={{ fontSize: '12px' }} />
-            </PieChart>
+            <PieChart width={420} height={320}>
+  <Pie
+    data={sensorHealthData}
+    cx="50%"
+    cy="50%"
+    startAngle={90}
+    endAngle={-270}
+    outerRadius={120}
+    innerRadius={70}
+    paddingAngle={2}
+    dataKey="value"
+  >
+    {sensorHealthData.map((entry, index) => (
+      <Cell key={index} fill={entry.fill} />
+    ))}
+  </Pie>
+
+  <Tooltip
+    formatter={(value, name, props) => [
+      `${props.payload.realValue} sensors`,
+      name,
+    ]}
+  />
+
+  <Legend
+    verticalAlign="bottom"
+    align="center"
+    wrapperStyle={{ fontSize: '12px' }}
+  />
+</PieChart>
           </div>
 
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
