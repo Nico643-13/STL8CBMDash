@@ -33,18 +33,21 @@ export const categories = [
 ];
 
 export const dtwCategoryOptions = [
-  ...categories,
-  { name: 'FWO/Work from PM - Crit 1/Backlog', color: 'bg-red-800' },
-  { name: 'FWO/Work from PM - Crit 2/Backlog', color: 'bg-orange-700' },
-  { name: 'FWO/Work from PM - Crit 3/Backlog', color: 'bg-yellow-700' },
-  { name: 'Corrective', color: 'bg-rose-700' },
-  { name: 'Project', color: 'bg-indigo-700' },
-  { name: 'CBM Work', color: 'bg-cyan-700' },
-  { name: 'PM 4wk', color: 'bg-emerald-700' },
-  { name: 'PM 12/13wk', color: 'bg-green-700' },
-  { name: 'PM 26wk', color: 'bg-teal-700' },
-  { name: 'PM 52wk', color: 'bg-blue-700' },
-  { name: 'Site Action Tracker', color: 'bg-purple-700' },
+  { name: 'Critical', color: 'bg-red-600', chartColor: '#dc2626' },
+  { name: 'High', color: 'bg-orange-500', chartColor: '#f97316' },
+  { name: 'Standard', color: 'bg-yellow-500', chartColor: '#eab308' },
+  { name: 'Hardware Issue', color: 'bg-yellow-500', chartColor: '#eab308' },
+  { name: 'FWO/Work from PM - Crit 1/Backlog', color: 'bg-yellow-500' },
+  { name: 'FWO/Work from PM - Crit 2/Backlog', color: 'bg-yellow-500' },
+  { name: 'FWO/Work from PM - Crit 3/Backlog', color: 'bg-yellow-500' },
+  { name: 'Corrective', color: 'bg-yellow-500' },
+  { name: 'Project', color: 'bg-yellow-500' },
+  { name: 'CBM Work', color: 'bg-yellow-500' },
+  { name: 'PM 4wk', color: 'bg-yellow-500' },
+  { name: 'PM 12/13wk', color: 'bg-yellow-500' },
+  { name: 'PM 26wk', color: 'bg-yellow-500' },
+  { name: 'PM 52wk', color: 'bg-yellow-500' },
+  { name: 'Site Action Tracker', color: 'bg-yellow-500' },
 ];
 
 export const activeAlarmCategories = categories.filter(
