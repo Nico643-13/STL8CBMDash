@@ -170,6 +170,20 @@ export function ShiftInfoCard({ reportInfo, setReportInfo, isEditMode }) {
     document.execCommand('backColor', false, 'yellow');
   };
 
+  const toolbarButton = (label, command) => (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onMouseDown={(e) => {
+        e.preventDefault();
+        applyFormat(command);
+      }}
+    >
+      {label}
+    </Button>
+  );
+
   return (
     <Card className="rounded-2xl shadow-lg">
       <CardHeader>
@@ -191,36 +205,33 @@ export function ShiftInfoCard({ reportInfo, setReportInfo, isEditMode }) {
 
         {isEditMode && (
           <div className="flex flex-wrap gap-2 rounded-lg border bg-slate-50 p-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('bold')}>
-              Bold
-            </Button>
+            {toolbarButton('Bold', 'bold')}
+            {toolbarButton('Italic', 'italic')}
+            {toolbarButton('Underline', 'underline')}
 
-            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('italic')}>
-              Italic
-            </Button>
-
-            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('underline')}>
-              Underline
-            </Button>
-
-            <Button type="button" size="sm" variant="outline" onClick={applyHighlight}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                applyHighlight();
+              }}
+            >
               Highlight
             </Button>
 
-            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('insertUnorderedList')}>
-              Bullets
-            </Button>
-
-            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('insertOrderedList')}>
-              Numbers
-            </Button>
+            {toolbarButton('Bullets', 'insertUnorderedList')}
+            {toolbarButton('Numbers', 'insertOrderedList')}
+            {toolbarButton('Indent', 'indent')}
+            {toolbarButton('Outdent', 'outdent')}
           </div>
         )}
 
         <div
           contentEditable={isEditMode}
           suppressContentEditableWarning
-          className="min-h-[160px] rounded-lg border bg-white p-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="rich-shift-notes min-h-[160px] rounded-lg border bg-white p-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
           dangerouslySetInnerHTML={{ __html: reportInfo.summary || '' }}
           onBlur={(e) =>
             setReportInfo({
