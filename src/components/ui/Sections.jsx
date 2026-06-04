@@ -160,12 +160,75 @@ export function Header({
 }
 
 export function ShiftInfoCard({ reportInfo, setReportInfo, isEditMode }) {
+  const applyFormat = (command) => {
+    if (!isEditMode) return;
+    document.execCommand(command, false, null);
+  };
+
+  const applyHighlight = () => {
+    if (!isEditMode) return;
+    document.execCommand('backColor', false, 'yellow');
+  };
+
   return (
     <Card className="rounded-2xl shadow-lg">
-      <CardHeader><CardTitle className="text-slate-900 dark:text-slate-100">Shift Information</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-lg">Shift Information</CardTitle>
+      </CardHeader>
+
       <CardContent className="space-y-3">
-        <Input type="date" value={reportInfo.date} disabled={!isEditMode} onChange={(e) => setReportInfo({ ...reportInfo, date: e.target.value })} />
-        <Textarea placeholder="Shift Summary / Notes" value={reportInfo.summary} disabled={!isEditMode} onChange={(e) => setReportInfo({ ...reportInfo, summary: e.target.value })} className="min-h-[140px]" />
+        <Input
+          type="date"
+          value={reportInfo.date}
+          disabled={!isEditMode}
+          onChange={(e) =>
+            setReportInfo({
+              ...reportInfo,
+              date: e.target.value,
+            })
+          }
+        />
+
+        {isEditMode && (
+          <div className="flex flex-wrap gap-2 rounded-lg border bg-slate-50 p-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('bold')}>
+              Bold
+            </Button>
+
+            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('italic')}>
+              Italic
+            </Button>
+
+            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('underline')}>
+              Underline
+            </Button>
+
+            <Button type="button" size="sm" variant="outline" onClick={applyHighlight}>
+              Highlight
+            </Button>
+
+            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('insertUnorderedList')}>
+              Bullets
+            </Button>
+
+            <Button type="button" size="sm" variant="outline" onClick={() => applyFormat('insertOrderedList')}>
+              Numbers
+            </Button>
+          </div>
+        )}
+
+        <div
+          contentEditable={isEditMode}
+          suppressContentEditableWarning
+          className="min-h-[160px] rounded-lg border bg-white p-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          dangerouslySetInnerHTML={{ __html: reportInfo.summary || '' }}
+          onBlur={(e) =>
+            setReportInfo({
+              ...reportInfo,
+              summary: e.currentTarget.innerHTML,
+            })
+          }
+        />
       </CardContent>
     </Card>
   );
