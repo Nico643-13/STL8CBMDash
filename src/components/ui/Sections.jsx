@@ -792,12 +792,20 @@ export function HardwareIssuesTable({
     return ['Open', 'On Hold - Awaiting DTW/Break'];
   };
 
-  const getHardwareDetails = (issueType) =>
-    alarms.filter(
+const getHardwareDetails = (issueType) =>
+  alarms
+    .filter(
       (alarm) =>
         alarm.category === 'Hardware Issue' &&
         alarm.issue === issueType &&
         alarm.status !== 'Resolved'
+    )
+    .sort((a, b) =>
+      String(a.asset || '').localeCompare(
+        String(b.asset || ''),
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      )
     );
 
   const toggleSelectedHardware = (alarmId) => {
