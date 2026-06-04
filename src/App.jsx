@@ -563,6 +563,26 @@ const updateAlarmField = (alarmId, field, value) => {
         html[data-cbm-theme='light'] .text-2xl {
           color: #111827 !important;
         }
+        .rich-shift-notes ul {
+        list-style-type: disc !important;
+        padding-left: 1.5rem !important;
+        margin: 0.5rem 0 !important;
+        }
+
+        .rich-shift-notes ol {
+         list-style-type: decimal !important;
+         padding-left: 1.5rem !important;
+         margin: 0.5rem 0 !important;
+         }
+
+         .rich-shift-notes li {
+         display: list-item !important;
+         margin: 0.25rem 0 !important;
+         }
+
+         .rich-shift-notes {
+         white-space: normal !important;
+         }
       `}</style>
       <div className="max-w-7xl mx-auto space-y-6">
         <Header
